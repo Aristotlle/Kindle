@@ -96,12 +96,25 @@
   #otitle { font-family: Georgia, serif; font-size: 4.4rem; font-weight: bold; }
   .ohead .x { font-family: Helvetica, Arial, sans-serif; font-size: 3rem; font-weight: bold; background: #fff;
               border: .4rem solid #000; border-radius: 1.4rem; padding: 1.2rem 2.6rem; }
-  #kb { flex: none; margin-top: 1.4rem; }
-  #kb .r { display: flex; gap: .8rem; margin-top: .8rem; }
-  #kb button { flex: 1; height: 8.2rem; background: #fff; border: .3rem solid #000; border-radius: 1rem;
-               font-family: Helvetica, Arial, sans-serif; font-size: 3.4rem; padding: 0; }
-  #kb button.w2 { flex: 2; } #kb button.w4 { flex: 5; }
-  #kb button.dark { background: #000; color: #fff; font-weight: bold; }
+  #kb { flex: none; margin: 1.4rem -4.5rem -3rem; padding: .6rem 1rem 2.4rem; background: #d1d3d9; }
+  #kb .r { display: flex; gap: 1rem; margin-top: 1.3rem; }
+  #kb .r.indent { padding: 0 4.6rem; }
+  #kb button { flex: 1; height: 8.6rem; background: #fff; border: none; border-radius: 1.1rem; padding: 0;
+               box-shadow: 0 .35rem 0 #85878c; color: #000; font-family: Helvetica, Arial, sans-serif; font-size: 4rem; }
+  #kb .r.small button { height: 7.4rem; font-size: 3.5rem; }
+  #kb button.sp { flex: 1.5; background: #abb0ba; font-size: 3rem; }
+  #kb button.space { flex: 5; font-size: 3rem; color: #333; }
+  #kb button.go { flex: 2; background: #000; color: #fff; font-size: 3.2rem; font-weight: bold; }
+  #kb button.press { background: #000 !important; color: #fff !important; box-shadow: none; }
+  #kbpop { display: none; position: fixed; z-index: 20; background: #fff; border: .35rem solid #000; border-radius: 1.6rem;
+           font-family: Helvetica, Arial, sans-serif; font-size: 7rem; text-align: center; line-height: 11rem; height: 11rem;
+           box-shadow: 0 .6rem 0 #85878c; }
+  .pbar { display: flex; gap: 1.4rem; align-items: center; justify-content: space-between; margin: 1.4rem 0; }
+  .pbar button { flex: 1; height: 8rem; background: #fff; border: .4rem solid #000; border-radius: 1.4rem;
+                 font-family: Helvetica, Arial, sans-serif; font-size: 2.9rem; font-weight: bold; }
+  .pbar button.dark { background: #000; color: #fff; }
+  .pbar span { flex: 1; text-align: center; font-size: 2.8rem; }
+  #results { -webkit-overflow-scrolling: touch; }
   .res.on b:before { content: "▶ "; }
   .sbar button { font-family: Helvetica, Arial, sans-serif; font-size: 3rem; font-weight: bold; background: #000; color: #fff;
                  border: .4rem solid #000; border-radius: 1.4rem; padding: 0 3rem; }
@@ -150,6 +163,7 @@
   <div id="results"></div>
   <div id="kb"></div>
 </div>
+<div id="kbpop"></div>
 
 <script>
 var C = window.DASH_CONFIG || {};
@@ -542,31 +556,65 @@ function sendToKindle() {
 
 /* ---------------- search (GET /search, max 10 per type) ---------------- */
 var lastResults = [];
-var KB_ROWS = [
-  "1234567890".split(""),
-  "qwertyuiop".split(""),
-  "asdfghjkl".split(""),
-  "zxcvbnm".split(""),
-  "ąčęėįšųūž".split("")
+// iPhone-style layout: numbers, then Lithuanian letters, then QWERTY
+var KB_LAYOUT = [
+  { cls: "small", keys: "1234567890".split("") },
+  { cls: "small", keys: "ąčęėįšųūž".split("") },
+  { cls: "",       keys: "qwertyuiop".split("") },
+  { cls: "indent", keys: "asdfghjkl".split("") },
+  { cls: "",       keys: ["CLR"].concat("zxcvbnm".split("")).concat(["BS"]) },
+  { cls: "",       keys: ["SPACE", "GO"] }
 ];
+var KB_LABEL = { CLR: "clear", BS: "⌫", SPACE: "space", GO: "Search" };
+var KB_CLASS = { CLR: "sp", BS: "sp", SPACE: "space", GO: "go" };
 var query = "";
 function renderKb() {
   var h = "";
-  KB_ROWS.forEach(function (row, i) {
-    h += '<div class="r">';
-    row.forEach(function (k) { h += '<button onclick="kbKey(\'' + k + '\')">' + k + "</button>"; });
-    if (i === 3) h += '<button class="w2" onclick="kbKey(\'BS\')">⌫</button>';
+  KB_LAYOUT.forEach(function (row) {
+    h += '<div class="r ' + row.cls + '">';
+    row.keys.forEach(function (k) {
+      h += '<button data-k="' + k + '" class="' + (KB_CLASS[k] || "") + '">' + (KB_LABEL[k] || k) + "</button>";
+    });
     h += "</div>";
   });
-  h += '<div class="r"><button class="w2" onclick="kbKey(\'CLR\')">Clear</button><button class="w4" onclick="kbKey(\' \')">space</button>' +
-       '<button class="w2 dark" onclick="doSearch()">Search</button></div>';
   setHTML("kb", h);
 }
 function kbKey(k) {
   if (k === "BS") query = query.slice(0, -1);
   else if (k === "CLR") query = "";
+  else if (k === "SPACE") query += " ";
+  else if (k === "GO") { doSearch(); return; }
   else query += k;
   setHTML("qtext", esc(query));
+}
+// key feedback: the key turns black and, for letters, an enlarged copy pops up above it (like iPhone)
+var popTimer = null;
+function pressFeedback(btn, k) {
+  btn.className += " press";
+  var pop = $("kbpop");
+  if (k.length === 1) {
+    var r = btn.getBoundingClientRect(), w = Math.max(r.width * 1.5, r.height);
+    pop.innerHTML = esc(k);
+    pop.style.width = w + "px";
+    pop.style.left = Math.max(4, Math.min(window.innerWidth - w - 4, r.left + r.width / 2 - w / 2)) + "px";
+    pop.style.display = "block";
+    pop.style.top = Math.max(4, r.top - pop.offsetHeight - 8) + "px";
+  }
+  clearTimeout(popTimer);
+  popTimer = setTimeout(function () {
+    pop.style.display = "none";
+    btn.className = btn.className.replace(/\s*press/g, "");
+  }, 220);
+}
+function kbPress(e) {
+  var t = e.target;
+  while (t && t !== this && !(t.getAttribute && t.getAttribute("data-k"))) t = t.parentNode;
+  if (!t || t === this) return;
+  if (e.type === "touchstart") { e.preventDefault(); kbPress.touched = Date.now(); }
+  else if (kbPress.touched && Date.now() - kbPress.touched < 800) return; // ignore the mouse event that follows a touch
+  var k = t.getAttribute("data-k");
+  pressFeedback(t, k);
+  kbKey(k);
 }
 function showKb(on) { $("kb").style.display = on ? "block" : "none"; }
 function overlayMode(title, search) {
@@ -575,12 +623,14 @@ function overlayMode(title, search) {
   showKb(search);
 }
 function openSearch() {
+  playlistsMode = false;
   overlayMode("Search", true); renderKb(); query = ""; setHTML("qtext", "");
   if (DEMO) { showResults(demoSearch(), "Results"); }
 }
 function openPlaylists() {
+  playlistsMode = true;
   overlayMode("My playlists", false); setHTML("smsg", "Loading your playlists…");
-  if (DEMO) { setHTML("smsg", ""); showResults(demoSearch(), null); return; }
+  if (DEMO) { setHTML("smsg", ""); showResults({ playlists: { items: [{ name: "Winter evenings", type: "playlist", owner: { display_name: "you" } }, { name: "Gym", type: "playlist", owner: { display_name: "you" } }] } }, ""); return; }
   sp("GET", "/me/playlists?limit=40").then(function (j) {
     setHTML("smsg", "");
     showResults({ playlists: { items: (j && j.items) || [] } }, "");
@@ -588,6 +638,7 @@ function openPlaylists() {
 }
 var deviceList = [];
 function openDevices() {
+  playlistsMode = false;
   overlayMode("Play on…", false); setHTML("smsg", "Looking for devices…");
   var p = DEMO ? Promise.resolve({ devices: [{ id: "a", name: "Living Room", type: "TV", is_active: true }, { id: "b", name: "Telia TV 119", type: "TV" }, { id: "c", name: "Phone", type: "Smartphone" }] })
                : sp("GET", "/me/player/devices");
@@ -620,6 +671,7 @@ function doSearch() {
     .then(function (j) { setHTML("smsg", ""); showResults(j || {}, null); })
     .catch(function (e) { setHTML("smsg", "Search failed: " + esc(e.message)); });
 }
+var playlistsMode = false;
 function showResults(j, title) {
   lastResults = []; var html = title ? "<h3>" + esc(title) + "</h3>" : "";
   if (title === "") title = "x"; // playlists view: no section headings
@@ -629,13 +681,23 @@ function showResults(j, title) {
     if (!title) html += "<h3>" + kind + "</h3>";
     items.forEach(function (it) {
       var i = lastResults.push(it) - 1;
-      html += '<button class="res" onclick="playResult(' + i + ')"><b>' + esc(it.name) + "</b><span>" + esc(sub(it)) + "</span></button>";
+      var fn = (playlistsMode && it.type === "playlist") ? "openPlaylist" : "playResult";
+      html += '<button class="res" onclick="' + fn + '(' + i + ')"><b>' + esc(it.name) + "</b><span>" + esc(sub(it)) + "</span></button>";
     });
   }
   add("Songs", j.tracks && j.tracks.items, function (t) { return (t.artists || []).map(function (a) { return a.name; }).join(", ") + (t.album ? " · " + t.album.name : ""); });
   add("Artists", j.artists && j.artists.items, function () { return "Artist · plays their top songs"; });
   add("Playlists", j.playlists && j.playlists.items, function (pl) { return "Playlist" + (pl.owner && pl.owner.display_name ? " · by " + pl.owner.display_name : ""); });
   setHTML("results", html || '<div class="sans" style="font-size:2.8rem;margin-top:2rem">No results.</div>');
+}
+function playBody(body) {
+  if (DEMO) return;
+  setHTML("smsg", "Starting…");
+  var dev = lastState && lastState.device;
+  var target = dev && dev.id ? Promise.resolve(dev) : findTV();
+  target.then(function (d) { return sp("PUT", "/me/player/play?device_id=" + encodeURIComponent(d.id), body); })
+    .then(function () { closeSearch(); setTimeout(pollSpotify, 1200); })
+    .catch(function (e) { setHTML("smsg", esc(e.message)); });
 }
 function playResult(i) {
   var it = lastResults[i]; if (!it || DEMO) return;
@@ -652,6 +714,72 @@ function demoSearch() {
                              { name: "Wait", artists: [{ name: "M83" }], album: { name: "Hurry Up, We're Dreaming" } }] },
            artists: { items: [{ name: "M83" }] },
            playlists: { items: [{ name: "This Is M83", owner: { display_name: "Spotify" } }] } };
+}
+
+
+/* ---------------- songs inside a playlist, sortable by date added, shown in pages ---------------- */
+var plOpen = null, plSongs = [], plPage = 0, PAGE = 8;
+var SORTS = ["newest", "oldest", "order"], SORT_LABEL = { newest: "Newest first", oldest: "Oldest first", order: "Playlist order" };
+function sortMode() { return load("sp_sort") || "newest"; }
+function openPlaylist(i) {
+  var pl = lastResults[i]; if (!pl) return;
+  plOpen = pl; plSongs = []; plPage = 0;
+  overlayMode(pl.name, false); setHTML("smsg", "Loading songs…");
+  if (DEMO) { plSongs = demoSongs(); renderSongs(); return; }
+  var all = [];
+  function page(url) {
+    return sp("GET", url).then(function (j) {
+      (j && j.items || []).forEach(function (x) {
+        var t = x.item || x.track;
+        if (t && t.uri && !x.is_local) all.push({ name: t.name, uri: t.uri, added: x.added_at || "", pos: all.length,
+          artists: (t.artists || []).map(function (a) { return a.name; }).join(", ") });
+      });
+      setHTML("smsg", "Loading songs… " + all.length);
+      if (j && j.next && all.length < 1000) return page(j.next.replace("https://api.spotify.com/v1", ""));
+    });
+  }
+  page("/playlists/" + pl.id + "/items?limit=50&additional_types=track")
+    .then(function () { plSongs = all; renderSongs(); })
+    .catch(function (e) {
+      if (e.status === 403) setHTML("smsg", "Spotify only lets this remote open playlists you made or collaborate on. You can still play it:");
+      else setHTML("smsg", "Could not load songs: " + esc(e.message));
+      setHTML("results", '<div class="pbar"><button onclick="openPlaylists()">‹ Back</button><button class="dark" onclick="playPlaylist()">▶ Play all</button></div>');
+    });
+}
+function cycleSort() {
+  var m = sortMode(); store("sp_sort", SORTS[(SORTS.indexOf(m) + 1) % SORTS.length]); plPage = 0; renderSongs();
+}
+function sortedSongs() {
+  var list = plSongs.slice(), m = sortMode();
+  if (m === "newest") list.sort(function (a, b) { return a.added < b.added ? 1 : a.added > b.added ? -1 : b.pos - a.pos; });
+  else if (m === "oldest") list.sort(function (a, b) { return a.added > b.added ? 1 : a.added < b.added ? -1 : a.pos - b.pos; });
+  return list;
+}
+function fmtDate(iso) {
+  if (!iso) return "";
+  var d = new Date(iso); if (isNaN(d)) return "";
+  return d.getDate() + " " + MONTHS[d.getMonth()] + " " + d.getFullYear();
+}
+function renderSongs() {
+  var list = sortedSongs(), pages = Math.max(1, Math.ceil(list.length / PAGE));
+  if (plPage >= pages) plPage = pages - 1;
+  setHTML("smsg", list.length + " songs");
+  var h = '<div class="pbar"><button onclick="openPlaylists()">‹ Back</button><button onclick="cycleSort()">' + SORT_LABEL[sortMode()] +
+          '</button><button class="dark" onclick="playPlaylist()">▶ Play all</button></div>';
+  list.slice(plPage * PAGE, plPage * PAGE + PAGE).forEach(function (sg) {
+    h += '<button class="res" onclick="playSong(\'' + sg.uri + '\')"><b>' + esc(sg.name) + "</b><span>" + esc(sg.artists) +
+         (sg.added ? " · added " + fmtDate(sg.added) : "") + "</span></button>";
+  });
+  if (pages > 1) h += '<div class="pbar"><button onclick="plPage=Math.max(0,plPage-1);renderSongs()">◀ Prev</button>' +
+                      '<span class="sans">Page ' + (plPage + 1) + " / " + pages + "</span>" +
+                      '<button onclick="plPage=Math.min(' + (pages - 1) + ',plPage+1);renderSongs()">Next ▶</button></div>';
+  setHTML("results", h);
+}
+function playSong(uri) { playBody({ context_uri: plOpen.uri, offset: { uri: uri } }); }
+function playPlaylist() { playBody({ context_uri: plOpen.uri }); }
+function demoSongs() {
+  var names = ["Midnight City", "Wait", "Outro", "Reunion", "Steve McQueen", "Claudia Lewis", "Splendor", "Soon, My Friend", "Ok Pal", "Intro"];
+  return names.map(function (n, i) { return { name: n, uri: "x" + i, artists: "M83", added: "2026-0" + (1 + i % 9) + "-1" + i + "T10:00:00Z", pos: i }; });
 }
 
 /* ---------------- demo data (for previewing the layout: add ?demo=1 to the URL) ---------------- */
@@ -691,12 +819,15 @@ document.addEventListener("click", function first() { if (!isFull()) goFull(); d
 document.addEventListener("fullscreenchange", fitUnit); document.addEventListener("webkitfullscreenchange", fitUnit);
 
 /* ---------------- start ---------------- */
+(function () { var kb = $("kb"); kb.addEventListener("touchstart", kbPress, false); kb.addEventListener("mousedown", kbPress, false); })();
 tickClock(); setInterval(tickClock, 20000);
 loadWeather(); setInterval(loadWeather, (C.WEATHER_EVERY_MIN || 30) * 60000);
 loadStock(); setInterval(loadStock, (C.STOCK_EVERY_MIN || 10) * 60000);
 if (DEMO && /[?&]search=1/.test(location.search)) setTimeout(openSearch, 50);
 if (DEMO && /[?&]devices=1/.test(location.search)) setTimeout(openDevices, 50);
+if (DEMO && /[?&]songs=1/.test(location.search)) setTimeout(function () { openPlaylists(); openPlaylist(0); }, 60);
 if (DEMO && /[?&]typed=1/.test(location.search)) setTimeout(function () { "midnight".split("").forEach(kbKey); }, 80);
+if (DEMO && /[?&]press=1/.test(location.search)) setTimeout(function () { var b = document.querySelector('#kb button[data-k="g"]'); pressFeedback(b, "g"); clearTimeout(popTimer); }, 150);
 handleRedirect().then(function () { pollSpotify(); setInterval(pollSpotify, (C.SPOTIFY_EVERY_SEC || 15) * 1000); });
 </script>
 </body>
