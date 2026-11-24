@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Kindle Dashboard</title>
+<script src="config.js"></script>
+<script>
+  function fitUnit() { var u = Math.min(window.innerWidth, window.innerHeight * 0.725) / 100;
+    document.documentElement.style.fontSize = u + "px"; }
+  fitUnit(); window.addEventListener("resize", fitUnit);
+</script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: #fff; color: #000; }
+  body { font-family: Georgia, "DejaVu Serif", serif; display: flex; flex-direction: column;
+         padding: 2.4rem 4.5rem 2.4rem; height: 100%; overflow: hidden; -webkit-user-select: none; user-select: none; }
+  .sans { font-family: Helvetica, Arial, "DejaVu Sans", sans-serif; }
+  .label { font-family: Helvetica, Arial, sans-serif; font-size: 2.3rem; letter-spacing: .5rem; text-transform: uppercase; color: #333; }
+  .muted { color: #555; }
+  section { border-bottom: .5rem solid #000; padding-bottom: 1.8rem; margin-bottom: 1.8rem; }
+  section:last-of-type { border-bottom: none; margin-bottom: 0; }
+
+  /* top bar */
+  .topbar { display: flex; justify-content: space-between; align-items: baseline; }
+  #clock { font-size: 5rem; font-weight: bold; }
+  #date { font-size: 2.8rem; }
+
+  /* weather */
+  #weather { flex: 0 0 auto; }
+  .now { display: flex; align-items: center; gap: 2.5rem; margin: .6rem 0 1rem; }
+  .now svg { width: 12rem; height: 12rem; flex: none; }
+  #temp { font-size: 11rem; font-weight: bold; line-height: 1; letter-spacing: -.5rem; }
+  .nowinfo { font-size: 2.6rem; line-height: 1.35; margin-left: auto; text-align: right; }
+  .nowinfo b { font-size: 3.2rem; }
+  .hours, .days { display: flex; justify-content: space-between; text-align: center; }
+  .hours { border-top: .2rem solid #999; padding-top: 1rem; margin-bottom: 1rem; }
+  .hours div, .days div { flex: 1; font-family: Helvetica, Arial, sans-serif; }
+  .hours .h { font-size: 2.3rem; color: #444; }
+  .hours svg, .days svg { width: 4.4rem; height: 4.4rem; display: block; margin: .2rem auto; }
+  .hours .t { font-size: 2.8rem; font-weight: bold; }
+  .hours .p, .days .p { font-size: 2.1rem; color: #444; }
+  .days .d { font-size: 2.4rem; font-weight: bold; }
+  .days .t { font-size: 2.6rem; }
+
+  /* stock */
+  #stock { flex: 0 0 auto; }
+  .stockrow { display: flex; justify-content: space-between; align-items: flex-end; margin: .4rem 0 .8rem; }
+  #price { font-size: 8.5rem; font-weight: bold; line-height: 1; }
+  #change { font-family: Helvetica, Arial, sans-serif; font-size: 3.4rem; font-weight: bold; text-align: right; }
+  #change small { display: block; font-size: 2.3rem; font-weight: normal; color: #444; margin-top: .6rem; }
+  #chart { width: 100%; height: 11rem; display: block; }
+  .chartbar { display: flex; justify-content: space-between; align-items: center; margin-top: .8rem; }
+  .seg { display: flex; border: .35rem solid #000; }
+  .seg button { border: none; background: #fff; font-size: 2.4rem; padding: .5rem 2.6rem; font-family: Helvetica, Arial, sans-serif; }
+  .seg button.on { background: #000; color: #fff; }
+
+  /* spotify */
+  #spotify { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+  #track { font-size: 4.4rem; font-weight: bold; line-height: 1.15; margin-top: .6rem;
+           overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
+  #artist { font-size: 3rem; margin-top: .3rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  #device { font-family: Helvetica, Arial, sans-serif; font-size: 2.3rem; color: #444; margin-top: .5rem; }
+  .controls { display: flex; justify-content: space-between; gap: 2.4rem; margin-top: auto; padding-top: 1.4rem; }
+  .controls button, .row2 button, .big {
+    flex: 1; background: #fff; border: .5rem solid #000; border-radius: 2rem; height: 11rem;
+    display: flex; align-items: center; justify-content: center; }
+  .controls button svg { width: 6rem; height: 6rem; }
+  .controls button.main { background: #000; flex: 1.3; }
+  .controls button.main svg { fill: #fff; }
+  .row2 { display: flex; gap: 2.4rem; margin-top: 2rem; }
+  .row2 button { height: 9rem; font-family: Helvetica, Arial, sans-serif; font-size: 3.4rem; font-weight: bold; }
+  .row2 button.tv { flex: 2.2; }
+  #msg { font-family: Helvetica, Arial, sans-serif; font-size: 2.3rem; min-height: 2.8rem; margin-top: .8rem; text-align: center; }
+  .big { width: 100%; font-family: Helvetica, Arial, sans-serif; font-size: 3.8rem; font-weight: bold; height: 13rem; margin-top: 3rem; }
+  .err { font-family: Helvetica, Arial, sans-serif; font-size: 2.6rem; color: #333; }
+</style>
+</head>
+<body>
+
+<section id="weather">
+  <div class="topbar"><span id="clock">--:--</span><span class="label" id="wlabel">Weather</span><span id="date" class="sans"></span></div>
+  <div class="now">
+    <span id="wicon"></span>
+    <span id="temp">--°</span>
+    <div class="nowinfo sans" id="nowinfo"></div>
+  </div>
+  <div class="hours" id="hours"></div>
+  <div class="days" id="days"></div>
+</section>
+
+<section id="stock">
+  <div class="label" id="slabel">Stock</div>
+  <div class="stockrow">
+    <span id="price">$--</span>
+    <span id="change"></span>
+  </div>
+  <svg id="chart" viewBox="0 0 1000 200" preserveAspectRatio="none"></svg>
+  <div class="chartbar">
+    <span class="sans muted" id="stockinfo" style="font-size:2.3vw"></span>
+    <div class="seg"><button id="r1d" class="on" onclick="setRange('1d')">1D</button><button id="r1m" onclick="setRange('1m')">1M</button></div>
+  </div>
+</section>
+
+<section id="spotify">
+  <div class="label">Spotify</div>
+  <div id="spbody"></div>
+</section>
+
+<script>
+var C = window.DASH_CONFIG || {};
+var DEMO = /[?&]demo=1/.test(location.search);
+function $(id) { return document.getElementById(id); }
+function pad(n) { return (n < 10 ? "0" : "") + n; }
+function setHTML(id, html) { var el = $(id); if (el && el.innerHTML !== html) el.innerHTML = html; } // only repaint on change (e-ink)
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]; }); }
+
+/* ---------------- clock ---------------- */
+var DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"], MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function localNow() {
+  // the Kindle browser may run in UTC, so compute Vilnius time explicitly
+  try {
+    var s = new Date().toLocaleString("en-US", { timeZone: C.TIMEZONE || "Europe/Vilnius" });
+    var d = new Date(s); if (!isNaN(d)) return d;
+  } catch (e) {}
+  return new Date();
+}
+function tickClock() {
+  var d = localNow();
+  setHTML("clock", pad(d.getHours()) + ":" + pad(d.getMinutes()));
+  setHTML("date", DAYS[d.getDay()] + ", " + d.getDate() + " " + MONTHS[d.getMonth()]);
+}
+
+/* ---------------- weather icons (simple line drawings, crisp on e-ink) ---------------- */
+function icon(code, night) {
+  var sun = night
+    ? '<path d="M62 22a26 26 0 1 0 16 44A30 30 0 0 1 62 22z" fill="none" stroke="#000" stroke-width="6"/>'
+    : '<circle cx="50" cy="50" r="17" fill="none" stroke="#000" stroke-width="6"/><g stroke="#000" stroke-width="6" stroke-linecap="round"><path d="M50 12v10M50 78v10M12 50h10M78 50h10M23 23l7 7M70 70l7 7M23 77l7-7M70 30l7-7"/></g>';
+  var cloud = function (y, fill) { return '<path d="M28 ' + (y + 30) + 'h46a15 15 0 0 0 0-30 22 22 0 0 0-42-4 17 17 0 0 0-4 34z" fill="' + (fill || "#fff") + '" stroke="#000" stroke-width="6" stroke-linejoin="round"/>'; };
+  var rain = '<g stroke="#000" stroke-width="5" stroke-linecap="round"><path d="M36 78l-4 10M52 78l-4 10M68 78l-4 10"/></g>';
+  var snow = '<g fill="#000"><circle cx="34" cy="84" r="4"/><circle cx="50" cy="90" r="4"/><circle cx="66" cy="84" r="4"/></g>';
+  var bolt = '<path d="M52 66l-10 16h10l-6 14 16-20H52l6-10z" fill="#000"/>';
+  var fog = '<g stroke="#000" stroke-width="6" stroke-linecap="round"><path d="M18 40h64M12 56h70M22 72h60"/></g>';
+  var body;
+  if (code === 0) body = sun;
+  else if (code <= 2) body = '<g transform="translate(-12,-14) scale(.8)">' + sun + '</g>' + cloud(34);
+  else if (code === 3) body = cloud(30, "#ddd");
+  else if (code === 45 || code === 48) body = fog;
+  else if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) body = cloud(22) + rain;
+  else if ((code >= 71 && code <= 77) || code === 85 || code === 86) body = cloud(22) + snow;
+  else if (code >= 95) body = cloud(18, "#ddd") + bolt;
+  else body = cloud(30);
+  return '<svg viewBox="0 0 100 100">' + body + '</svg>';
+}
+function describe(code) {
+  if (code === 0) return "Clear"; if (code <= 2) return "Partly cloudy"; if (code === 3) return "Overcast";
+  if (code === 45 || code === 48) return "Fog"; if (code >= 51 && code <= 57) return "Drizzle";
+  if (code >= 61 && code <= 67) return "Rain"; if (code >= 71 && code <= 77) return "Snow";
+  if (code >= 80 && code <= 82) return "Showers"; if (code === 85 || code === 86) return "Snow showers";
+  if (code >= 95) return "Thunderstorm"; return "";
+}
+
+/* ---------------- weather (Open-Meteo, free, no key) ---------------- */
+function loadWeather() {
+  var url = "https://api.open-meteo.com/v1/forecast?latitude=" + C.LAT + "&longitude=" + C.LON +
+    "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m,is_day" +
+    "&hourly=temperature_2m,precipitation_probability,weather_code,is_day" +
+    "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunset" +
+    "&timezone=" + encodeURIComponent(C.TIMEZONE) + "&forecast_days=6&wind_speed_unit=ms";
+  var p = DEMO ? Promise.resolve(demoWeather()) : fetch(url).then(function (r) { return r.json(); });
+  p.then(renderWeather).catch(function () { setHTML("nowinfo", '<span class="err">Weather unavailable</span>'); });
+}
+function renderWeather(w) {
+  var c = w.current;
+  setHTML("wlabel", esc(C.CITY) + " · weather");
+  setHTML("wicon", icon(c.weather_code, !c.is_day));
+  setHTML("temp", Math.round(c.temperature_2m) + "°");
+  setHTML("nowinfo", "<b>" + describe(c.weather_code) + "</b><br>Feels like " + Math.round(c.apparent_temperature) + "°<br>" +
+    "Wind " + Math.round(c.wind_speed_10m) + " m/s · " + c.relative_humidity_2m + "%<br>Sunset " + w.daily.sunset[0].slice(11, 16));
+  // next 6 slots, every 2 hours, starting from the coming hour
+  var now = c.time.slice(0, 13), start = 0, h = w.hourly, out = "";
+  for (var i = 0; i < h.time.length; i++) if (h.time[i].slice(0, 13) > now) { start = i; break; }
+  for (var k = 0; k < 6; k++) {
+    var j = start + k * 2;
+    out += '<div><div class="h">' + h.time[j].slice(11, 16) + "</div>" + icon(h.weather_code[j], !h.is_day[j]) +
+      '<div class="t">' + Math.round(h.temperature_2m[j]) + '°</div><div class="p">' + (h.precipitation_probability[j] || 0) + "%</div></div>";
+  }
+  setHTML("hours", out);
+  var d = w.daily, dout = "";
+  for (var n = 1; n < Math.min(6, d.time.length); n++) {
+    var dt = new Date(d.time[n] + "T12:00:00");
+    dout += '<div><div class="d">' + DAYS[dt.getDay()] + "</div>" + icon(d.weather_code[n], false) +
+      '<div class="t"><b>' + Math.round(d.temperature_2m_max[n]) + "°</b> " + Math.round(d.temperature_2m_min[n]) + '°</div><div class="p">' + (d.precipitation_probability_max[n] || 0) + "%</div></div>";
+  }
+  setHTML("days", dout);
+}
+
+/* ---------------- stock (Twelve Data, free plan) ---------------- */
+var range = "1d";
+function setRange(r) { range = r; $("r1d").className = r === "1d" ? "on" : ""; $("r1m").className = r === "1m" ? "on" : ""; loadStock(); }
+function td(path) {
+  return fetch("https://api.twelvedata.com/" + path + "&apikey=" + encodeURIComponent(C.TWELVE_DATA_KEY))
+    .then(function (r) { return r.json(); })
+    .then(function (j) { if (j.status === "error") throw new Error(j.message); return j; });
+}
+function loadStock() {
+  setHTML("slabel", esc(C.STOCK_NAME) + " · " + esc(C.STOCK));
+  if (!DEMO && /PASTE/.test(C.TWELVE_DATA_KEY || "PASTE")) { setHTML("stockinfo", "Add your Twelve Data key in config.js"); return; }
+  var series = range === "1d" ? "time_series?symbol=" + C.STOCK + "&interval=5min&outputsize=79"
+                              : "time_series?symbol=" + C.STOCK + "&interval=1day&outputsize=23";
+  var p = DEMO ? Promise.resolve(demoStock()) :
+    Promise.all([td("quote?symbol=" + C.STOCK), td(series)]);
+  p.then(function (res) { renderStock(res[0], res[1]); })
+   .catch(function (e) { setHTML("stockinfo", "Stock unavailable: " + esc(e.message || e)); });
+}
+function renderStock(q, ts) {
+  var price = parseFloat(q.close), prev = parseFloat(q.previous_close);
+  var ch = parseFloat(q.change), pct = parseFloat(q.percent_change);
+  setHTML("price", "$" + price.toFixed(2));
+  setHTML("change", (ch >= 0 ? "▲ +" : "▼ ") + ch.toFixed(2) + " (" + (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%)" +
+    "<small>" + (q.is_market_open ? "Market open" : "Market closed") + "</small>");
+  var t = localNow(), ys0 = [];
+  var setInfo = function () { setHTML("stockinfo", "Updated " + pad(t.getHours()) + ":" + pad(t.getMinutes()) + (range === "1d" ? " · today" : " · 1 month") + (ys0.length ? " · range $" + Math.min.apply(null, ys0).toFixed(0) + "–" + Math.max.apply(null, ys0).toFixed(0) : "")); };
+  var vals = (ts.values || []).slice().reverse();
+  if (range === "1d" && vals.length) { // keep only the most recent trading day
+    var lastDay = vals[vals.length - 1].datetime.slice(0, 10);
+    vals = vals.filter(function (v) { return v.datetime.slice(0, 10) === lastDay; });
+  }
+  var ys = vals.map(function (v) { return parseFloat(v.close); });
+  ys0 = ys; setInfo();
+  var ref = range === "1d" ? prev : (ys.length ? ys[0] : prev);
+  var lo = Math.min.apply(null, ys.concat([ref])), hi = Math.max.apply(null, ys.concat([ref]));
+  var span = (hi - lo) || 1, W = 1000, H = 200, padY = 14;
+  var n = range === "1d" ? 78 : Math.max(ys.length - 1, 1); // a full session has 78 five-minute bars
+  function Y(v) { return padY + (H - 2 * padY) * (1 - (v - lo) / span); }
+  var pts = ys.map(function (v, i) { return (i / n * W).toFixed(1) + "," + Y(v).toFixed(1); }).join(" ");
+  var lastX = ((ys.length - 1) / n * W).toFixed(1);
+  var svg = '<line x1="0" x2="1000" y1="' + Y(ref).toFixed(1) + '" y2="' + Y(ref).toFixed(1) + '" stroke="#000" stroke-width="2" stroke-dasharray="10 10"/>' +
+    (ys.length ? '<polygon points="0,' + H + " " + pts + " " + lastX + "," + H + '" fill="#e2e2e2"/>' +
+    '<polyline points="' + pts + '" fill="none" stroke="#000" stroke-width="5" stroke-linejoin="round"/>' +
+    '<rect x="' + (lastX - 4) + '" y="' + (Y(ys[ys.length - 1]) - 14).toFixed(1) + '" width="8" height="28" fill="#000"/>' : "") +
+"";
+  var chart = $("chart"); if (chart.innerHTML !== svg) chart.innerHTML = svg;
+}
+
+/* ---------------- Spotify (Web API, PKCE login, Premium needed for playback control) ---------------- */
+var REDIRECT = location.origin + location.pathname;
+var SCOPES = "user-read-playback-state user-modify-playback-state user-read-currently-playing";
+var lastState = null, busy = false;
+
+function b64url(bytes) {
+  var s = ""; for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function sha256(str) {
+  var data = new TextEncoder().encode(str);
+  if (window.crypto && crypto.subtle) return crypto.subtle.digest("SHA-256", data).then(function (h) { return new Uint8Array(h); });
+  return Promise.resolve(sha256js(data));
+}
+function sha256js(m) { // fallback for browsers without crypto.subtle
+  var K = [0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  var H = [0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+  var l = m.length, withPad = ((l + 9 + 63) >> 6) << 6, b = new Uint8Array(withPad);
+  b.set(m); b[l] = 0x80; var bits = l * 8; b[withPad - 4] = bits >>> 24; b[withPad - 3] = bits >>> 16; b[withPad - 2] = bits >>> 8; b[withPad - 1] = bits;
+  var w = new Array(64);
+  for (var o = 0; o < withPad; o += 64) {
+    for (var t = 0; t < 16; t++) w[t] = (b[o+4*t] << 24) | (b[o+4*t+1] << 16) | (b[o+4*t+2] << 8) | b[o+4*t+3];
+    for (t = 16; t < 64; t++) {
+      var x = w[t-15], y = w[t-2];
+      var s0 = ((x >>> 7) | (x << 25)) ^ ((x >>> 18) | (x << 14)) ^ (x >>> 3);
+      var s1 = ((y >>> 17) | (y << 15)) ^ ((y >>> 19) | (y << 13)) ^ (y >>> 10);
+      w[t] = (w[t-16] + s0 + w[t-7] + s1) | 0;
+    }
+    var a = H[0], bb = H[1], c = H[2], d = H[3], e = H[4], f = H[5], g = H[6], h = H[7];
+    for (t = 0; t < 64; t++) {
+      var S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
+      var t1 = (h + S1 + ((e & f) ^ (~e & g)) + K[t] + w[t]) | 0;
+      var S0 = ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10));
+      var t2 = (S0 + ((a & bb) ^ (a & c) ^ (bb & c))) | 0;
+      h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = bb; bb = a; a = (t1 + t2) | 0;
+    }
+    H[0]=(H[0]+a)|0; H[1]=(H[1]+bb)|0; H[2]=(H[2]+c)|0; H[3]=(H[3]+d)|0; H[4]=(H[4]+e)|0; H[5]=(H[5]+f)|0; H[6]=(H[6]+g)|0; H[7]=(H[7]+h)|0;
+  }
+  var out = new Uint8Array(32); for (var i = 0; i < 8; i++) { out[4*i] = H[i] >>> 24; out[4*i+1] = H[i] >>> 16; out[4*i+2] = H[i] >>> 8; out[4*i+3] = H[i]; }
+  return out;
+}
+function randomString(n) {
+  var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789", a = new Uint8Array(n), s = "";
+  crypto.getRandomValues(a); for (var i = 0; i < n; i++) s += chars[a[i] % chars.length]; return s;
+}
+function store(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
+function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+
+function spLogin() {
+  var verifier = randomString(64);
+  store("sp_verifier", verifier);
+  sha256(verifier).then(function (hash) {
+    location.href = "https://accounts.spotify.com/authorize?response_type=code&client_id=" + encodeURIComponent(C.SPOTIFY_CLIENT_ID) +
+      "&scope=" + encodeURIComponent(SCOPES) + "&redirect_uri=" + encodeURIComponent(REDIRECT) +
+      "&code_challenge_method=S256&code_challenge=" + b64url(hash);
+  });
+}
+function tokenRequest(params) {
+  params.client_id = C.SPOTIFY_CLIENT_ID;
+  var body = Object.keys(params).map(function (k) { return encodeURIComponent(k) + "=" + encodeURIComponent(params[k]); }).join("&");
+  return fetch("https://accounts.spotify.com/api/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: body })
+    .then(function (r) { return r.json(); })
+    .then(function (j) {
+      if (!j.access_token) throw new Error(j.error_description || j.error || "login failed");
+      store("sp_access", j.access_token);
+      store("sp_expires", String(Date.now() + (j.expires_in - 60) * 1000));
+      if (j.refresh_token) store("sp_refresh", j.refresh_token);
+      return j.access_token;
+    });
+}
+function handleRedirect() {
+  var m = location.search.match(/[?&]code=([^&]+)/);
+  var err = location.search.match(/[?&]error=([^&]+)/);
+  if (err) { history.replaceState(null, "", REDIRECT); return Promise.resolve(); }
+  if (!m) return Promise.resolve();
+  var code = decodeURIComponent(m[1]);
+  history.replaceState(null, "", REDIRECT);
+  return tokenRequest({ grant_type: "authorization_code", code: code, redirect_uri: REDIRECT, code_verifier: load("sp_verifier") || "" })
+    .catch(function (e) { setMsg("Login failed: " + e.message); });
+}
+function accessToken() {
+  var t = load("sp_access"), exp = parseInt(load("sp_expires") || "0", 10);
+  if (t && Date.now() < exp) return Promise.resolve(t);
+  var r = load("sp_refresh");
+  if (!r) return Promise.reject(new Error("not logged in"));
+  return tokenRequest({ grant_type: "refresh_token", refresh_token: r });
+}
+function sp(method, path, body) {
+  return accessToken().then(function (t) {
+    return fetch("https://api.spotify.com/v1" + path, {
+      method: method, headers: { "Authorization": "Bearer " + t, "Content-Type": "application/json" },
+      body: body ? JSON.stringify(body) : undefined });
+  }).then(function (r) {
+    if (r.status === 204 || r.status === 202) return null;
+    return r.text().then(function (txt) {
+      var j = null; try { j = txt ? JSON.parse(txt) : null; } catch (e) {}
+      if (!r.ok) { var e2 = new Error((j && j.error && j.error.message) || ("HTTP " + r.status)); e2.status = r.status; e2.reason = j && j.error && j.error.reason; throw e2; }
+      return j;
+    });
+  });
+}
+
+var ICONS = {
+  prev: '<svg viewBox="0 0 24 24"><path d="M6 5h2.5v14H6zM20 5v14L9.5 12z"/></svg>',
+  next: '<svg viewBox="0 0 24 24"><path d="M15.5 5H18v14h-2.5zM4 5l10.5 7L4 19z"/></svg>',
+  play: '<svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg>',
+  pause: '<svg viewBox="0 0 24 24"><path d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z"/></svg>'
+};
+function setMsg(t) { setHTML("msg", esc(t || "")); }
+
+function renderSpotify(state) {
+  if (!DEMO && /PASTE/.test(C.SPOTIFY_CLIENT_ID || "PASTE")) {
+    setHTML("spbody", '<div class="err" style="margin-top:2vw">Add your Spotify Client ID in config.js</div>'); return;
+  }
+  if (!DEMO && !load("sp_refresh")) {
+    setHTML("spbody", '<div class="sans" style="font-size:3vw;margin-top:2vw">Log in once to use the remote.</div>' +
+      '<button class="big" onclick="spLogin()">Log in to Spotify</button><div id="msg"></div>'); return;
+  }
+  var item = state && state.item, playing = state && state.is_playing;
+  var dev = state && state.device;
+  var html =
+    '<div id="track">' + esc(item ? item.name : "Nothing playing") + "</div>" +
+    '<div id="artist" class="sans">' + esc(item ? (item.artists || []).map(function (a) { return a.name; }).join(", ") : "Tap “Play on TV” to start") + "</div>" +
+    '<div id="device">' + (dev ? "▶ " + esc(dev.name) + (dev.volume_percent != null ? " · volume " + dev.volume_percent + "%" : "") : "No active device") + "</div>" +
+    '<div class="controls">' +
+      '<button onclick="act(\'prev\')">' + ICONS.prev + "</button>" +
+      '<button class="main" onclick="act(\'toggle\')">' + (playing ? ICONS.pause : ICONS.play) + "</button>" +
+      '<button onclick="act(\'next\')">' + ICONS.next + "</button>" +
+    "</div>" +
+    '<div class="row2">' +
+      '<button onclick="act(\'voldown\')">Vol −</button>' +
+      '<button class="tv" onclick="act(\'tv\')">Play on TV</button>' +
+      '<button onclick="act(\'volup\')">Vol +</button>' +
+    "</div><div id=\"msg\"></div>";
+  var keep = $("msg") ? $("msg").innerHTML : "";
+  setHTML("spbody", html);
+  if (keep) $("msg").innerHTML = keep;
+}
+
+function pollSpotify() {
+  if (DEMO) { renderSpotify(demoPlayer()); return; }
+  if (!load("sp_refresh") || busy) { renderSpotify(null); return; }
+  sp("GET", "/me/player").then(function (s) {
+    lastState = s;
+    var key = s && s.item ? s.item.id + s.is_playing + (s.device && s.device.id) + (s.device && s.device.volume_percent) : "none";
+    if (key !== pollSpotify.key) { pollSpotify.key = key; renderSpotify(s); }
+  }).catch(function (e) {
+    if (e.message === "not logged in") renderSpotify(null); else setMsg("Spotify: " + e.message);
+  });
+}
+
+function findTV() {
+  return sp("GET", "/me/player/devices").then(function (j) {
+    var list = (j && j.devices) || [], want = (C.TV_NAME_CONTAINS || "").toLowerCase();
+    for (var i = 0; i < list.length; i++) if (want && list[i].name.toLowerCase().indexOf(want) >= 0) return list[i];
+    for (i = 0; i < list.length; i++) if (list[i].type === "TV") return list[i];
+    throw new Error("TV not found. Open Spotify on the TV first. Seen: " + (list.map(function (d) { return d.name; }).join(", ") || "no devices"));
+  });
+}
+
+function act(what) {
+  if (DEMO) return;
+  busy = true; setMsg("…");
+  var s = lastState, dev = s && s.device, vol = dev && dev.volume_percent != null ? dev.volume_percent : 50;
+  var p;
+  if (what === "tv") p = findTV().then(function (tv) { return sp("PUT", "/me/player", { device_ids: [tv.id], play: true }); });
+  else if (what === "toggle") p = sp("PUT", "/me/player/" + (s && s.is_playing ? "pause" : "play"));
+  else if (what === "next") p = sp("POST", "/me/player/next");
+  else if (what === "prev") p = sp("POST", "/me/player/previous");
+  else if (what === "volup") p = sp("PUT", "/me/player/volume?volume_percent=" + Math.min(100, vol + 10));
+  else if (what === "voldown") p = sp("PUT", "/me/player/volume?volume_percent=" + Math.max(0, vol - 10));
+  p.then(function () { setMsg(""); })
+   .catch(function (e) {
+     if (e.reason === "NO_ACTIVE_DEVICE" || e.status === 404) setMsg("No active device — tap “Play on TV”.");
+     else if (e.status === 403) setMsg("Spotify refused (" + e.message + ")");
+     else setMsg(e.message);
+   })
+   .then(function () { busy = false; setTimeout(pollSpotify, 900); });
+}
+
+/* ---------------- demo data (for previewing the layout: add ?demo=1 to the URL) ---------------- */
+function demoWeather() {
+  var hourly = { time: [], temperature_2m: [], precipitation_probability: [], weather_code: [], is_day: [] };
+  for (var i = 0; i < 48; i++) { var hh = (19 + i) % 24; hourly.time.push("2026-11-" + (24 + Math.floor((19 + i) / 24)) + "T" + pad(hh) + ":00");
+    hourly.temperature_2m.push(-1 - Math.sin(i / 4) * 2); hourly.precipitation_probability.push([10, 20, 60, 70, 40, 15][i % 6]);
+    hourly.weather_code.push([3, 3, 71, 73, 2, 0][Math.floor(i / 2) % 6]); hourly.is_day.push(hh >= 8 && hh < 16 ? 1 : 0); }
+  return { current: { time: "2026-11-24T19:30", temperature_2m: -1.4, apparent_temperature: -5.8, weather_code: 3, wind_speed_10m: 4.2, relative_humidity_2m: 88, is_day: 0 },
+    hourly: hourly, daily: { time: ["2026-11-24","2026-11-25","2026-11-26","2026-11-27","2026-11-28","2026-11-29"],
+      weather_code: [3, 71, 73, 2, 0, 61], temperature_2m_max: [1, 0, -2, -1, 2, 4], temperature_2m_min: [-3, -4, -6, -7, -3, 0],
+      precipitation_probability_max: [20, 70, 80, 10, 5, 60], sunset: ["2026-11-24T15:58"] } };
+}
+function demoStock() {
+  var vals = [], v = 181.2;
+  for (var i = 0; i < 52; i++) { v += Math.sin(i / 5) * 0.9 + (i % 7 - 3) * 0.12 + 0.05; vals.push({ datetime: "2026-11-24 " + pad(9 + Math.floor((30 + i * 5) / 60)) + ":" + pad((30 + i * 5) % 60) + ":00", close: v.toFixed(2) }); }
+  return [{ close: v.toFixed(2), previous_close: "181.20", change: (v - 181.2).toFixed(2), percent_change: ((v - 181.2) / 181.2 * 100).toFixed(2), is_market_open: true }, { values: vals.reverse() }];
+}
+function demoPlayer() {
+  return { is_playing: true, device: { id: "x", name: "Philips TV", volume_percent: 35 },
+    item: { id: "1", name: "Midnight City", artists: [{ name: "M83" }] } };
+}
+
+/* ---------------- start ---------------- */
+tickClock(); setInterval(tickClock, 20000);
+loadWeather(); setInterval(loadWeather, (C.WEATHER_EVERY_MIN || 30) * 60000);
+loadStock(); setInterval(loadStock, (C.STOCK_EVERY_MIN || 10) * 60000);
+handleRedirect().then(function () { pollSpotify(); setInterval(pollSpotify, (C.SPOTIFY_EVERY_SEC || 15) * 1000); });
+</script>
+</body>
+</html>
