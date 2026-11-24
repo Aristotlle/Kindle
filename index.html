@@ -64,7 +64,7 @@
            overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
   #artist { font-size: 3rem; margin-top: .3rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   #device { font-family: Helvetica, Arial, sans-serif; font-size: 2.3rem; color: #444; margin-top: .5rem; }
-  .controls { display: flex; justify-content: space-between; gap: 2.4rem; margin-top: auto; padding-top: 1.4rem; }
+  .controls { display: flex; justify-content: space-between; gap: 2.4rem; margin-top: 2.4rem; }
   .controls button, .row2 button, .big {
     flex: 1; background: #fff; border: .5rem solid #000; border-radius: 2rem; height: 14rem;
     display: flex; align-items: center; justify-content: center; }
@@ -79,6 +79,9 @@
   .err { font-family: Helvetica, Arial, sans-serif; font-size: 2.6rem; color: #333; }
   html.pc body { overflow: auto; height: auto; min-height: 100%; }
   #spbody { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+  .row0 { display: flex; gap: 2.4rem; margin-top: auto; padding-top: 1.6rem; }
+  .row0 button { flex: 1; height: 10rem; background: #fff; border: .5rem solid #000; border-radius: 2rem;
+                 font-family: Helvetica, Arial, sans-serif; font-size: 3.6rem; font-weight: bold; }
   .sphead { display: flex; justify-content: space-between; align-items: center; }
   #searchbtn { font-family: Helvetica, Arial, sans-serif; font-size: 2.6rem; font-weight: bold; background: #fff;
                border: .4rem solid #000; border-radius: 1.4rem; padding: .7rem 3rem; }
@@ -121,7 +124,7 @@
 </section>
 
 <section id="spotify">
-  <div class="sphead"><span class="label">Spotify</span><button id="searchbtn" onclick="openSearch()">Search</button></div>
+  <div class="label">Spotify</div>
   <div id="spbody"></div>
 </section>
 
@@ -401,6 +404,7 @@ function renderSpotify(state) {
     '<div id="track">' + esc(item ? item.name : "Nothing playing") + "</div>" +
     '<div id="artist" class="sans">' + esc(item ? (item.artists || []).map(function (a) { return a.name; }).join(", ") : "Tap ▶ to start on the TV") + "</div>" +
     '<div id="device">' + (dev ? "▶ " + esc(dev.name) + (dev.volume_percent != null ? " · volume " + dev.volume_percent + "%" : "") : "No active device") + "</div>" +
+    '<div class="row0"><button onclick="openSearch()">Search</button><button onclick="openPlaylists()">My playlists</button></div>' +
     '<div class="controls">' +
       '<button onclick="act(\'prev\')">' + ICONS.prev + "</button>" +
       '<button class="main" onclick="act(\'toggle\')">' + (playing ? ICONS.pause : ICONS.play) + "</button>" +
@@ -527,6 +531,14 @@ function openSearch() {
     if (!$("q").value) showResults({ playlists: { items: (j && j.items) || [] } }, "Your playlists");
   }).catch(function () {});
   setTimeout(function () { try { $("q").focus(); } catch (e) {} }, 300);
+}
+function openPlaylists() {
+  $("overlay").className = "open"; setHTML("smsg", "Loading your playlists…"); setHTML("results", "");
+  if (DEMO) { setHTML("smsg", ""); showResults(demoSearch(), "Your playlists"); return; }
+  sp("GET", "/me/playlists?limit=40").then(function (j) {
+    setHTML("smsg", "");
+    showResults({ playlists: { items: (j && j.items) || [] } }, "Your playlists");
+  }).catch(function (e) { setHTML("smsg", "Could not load playlists: " + esc(e.message)); });
 }
 function closeSearch() { $("overlay").className = ""; try { $("q").blur(); } catch (e) {} }
 function doSearch() {
