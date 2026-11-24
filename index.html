@@ -841,6 +841,17 @@ function exitKiosk() {
 }
 
 /* ---------------- start ---------------- */
+// tell the Dashboard launcher (if it is waiting) that this page really loaded
+if (KIOSK) {
+  var readyPings = 0;
+  var pingReady = function () {
+    var u = "http://127.0.0.1:8766/ready?" + Date.now();
+    try { new Image().src = u; } catch (e) {}
+    try { fetch(u, { mode: "no-cors" }).catch(function () {}); } catch (e) {}
+    if (++readyPings < 10) setTimeout(pingReady, 3000);
+  };
+  setTimeout(pingReady, 1500);
+}
 (function () { var kb = $("kb"); kb.addEventListener("touchstart", kbPress, false); kb.addEventListener("mousedown", kbPress, false); })();
 tickClock(); setInterval(tickClock, 20000);
 loadWeather(); setInterval(loadWeather, (C.WEATHER_EVERY_MIN || 30) * 60000);
