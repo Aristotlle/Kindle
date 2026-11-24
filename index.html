@@ -82,6 +82,9 @@
   .row0 { display: flex; gap: 2.4rem; margin-top: auto; padding-top: 1.6rem; }
   .row0 button { flex: 1; height: 10rem; background: #fff; border: .5rem solid #000; border-radius: 2rem;
                  font-family: Helvetica, Arial, sans-serif; font-size: 3.3rem; font-weight: bold; }
+  #exitbtn { display: none; margin-left: 2rem; font-family: Helvetica, Arial, sans-serif; font-size: 2.4rem; font-weight: bold;
+             background: #fff; border: .35rem solid #000; border-radius: 1.2rem; padding: .6rem 2rem; vertical-align: middle; }
+  .kiosk #exitbtn { display: inline-block; }
   .sphead { display: flex; justify-content: space-between; align-items: center; }
   #searchbtn { font-family: Helvetica, Arial, sans-serif; font-size: 2.6rem; font-weight: bold; background: #fff;
                border: .4rem solid #000; border-radius: 1.4rem; padding: .7rem 3rem; }
@@ -130,7 +133,7 @@
 <body>
 
 <section id="weather">
-  <div class="topbar"><span id="clock" onclick="toggleFull()">--:--</span><span class="label" id="wlabel">Weather</span><span id="date" class="sans"></span></div>
+  <div class="topbar"><span id="clock" onclick="toggleFull()">--:--</span><span class="label" id="wlabel">Weather</span><span><span id="date" class="sans"></span><button id="exitbtn" onclick="exitKiosk()">Exit</button></span></div>
   <div class="now">
     <span id="wicon"></span>
     <span id="temp">--°</span>
@@ -817,6 +820,21 @@ function toggleFull() {
 // first tap anywhere tries full screen automatically (browsers only allow it after a tap)
 document.addEventListener("click", function first() { if (!isFull()) goFull(); document.removeEventListener("click", first, true); }, true);
 document.addEventListener("fullscreenchange", fitUnit); document.addEventListener("webkitfullscreenchange", fitUnit);
+
+/* ---------------- Exit button (only when started by the Dashboard launcher) ---------------- */
+var KIOSK = /[?&]kiosk=1/.test(location.search);
+if (KIOSK) {
+  document.documentElement.className += " kiosk";
+  try { history.replaceState(null, "", location.pathname); } catch (e) {} // keep the address clean (Spotify login)
+  store("kiosk", "1");
+}
+function exitKiosk() {
+  setHTML("exitbtn", "Exiting…");
+  var u = "http://127.0.0.1:8765/exit?" + Date.now();
+  try { new Image().src = u; } catch (e) {}
+  try { fetch(u, { mode: "no-cors" }).catch(function () {}); } catch (e) {}
+  setTimeout(function () { setHTML("exitbtn", "Exit"); }, 8000); // if nothing happened, the power button still works
+}
 
 /* ---------------- start ---------------- */
 (function () { var kb = $("kb"); kb.addEventListener("touchstart", kbPress, false); kb.addEventListener("mousedown", kbPress, false); })();
