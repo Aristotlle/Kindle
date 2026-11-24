@@ -104,7 +104,7 @@
 <body>
 
 <section id="weather">
-  <div class="topbar"><span id="clock">--:--</span><span class="label" id="wlabel">Weather</span><span id="date" class="sans"></span></div>
+  <div class="topbar"><span id="clock" onclick="toggleFull()">--:--</span><span class="label" id="wlabel">Weather</span><span id="date" class="sans"></span></div>
   <div class="now">
     <span id="wicon"></span>
     <span id="temp">--°</span>
@@ -602,6 +602,21 @@ function demoPlayer() {
   return { is_playing: true, device: { id: "x", name: "Philips TV", volume_percent: 35 },
     item: { id: "1", name: "Midnight City", artists: [{ name: "M83" }] } };
 }
+
+/* ---------------- full screen (hides the browser's toolbar where supported) ---------------- */
+function isFull() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+function goFull() {
+  var el = document.documentElement;
+  var f = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen;
+  if (f) { try { var r = f.call(el); if (r && r.catch) r.catch(function () {}); } catch (e) {} }
+}
+function toggleFull() {
+  if (isFull()) { var x = document.exitFullscreen || document.webkitExitFullscreen; if (x) x.call(document); }
+  else goFull();
+}
+// first tap anywhere tries full screen automatically (browsers only allow it after a tap)
+document.addEventListener("click", function first() { if (!isFull()) goFull(); document.removeEventListener("click", first, true); }, true);
+document.addEventListener("fullscreenchange", fitUnit); document.addEventListener("webkitfullscreenchange", fitUnit);
 
 /* ---------------- start ---------------- */
 tickClock(); setInterval(tickClock, 20000);
