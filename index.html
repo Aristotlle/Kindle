@@ -86,6 +86,9 @@
   #exitbtn { display: none; margin-left: 2rem; font-family: Helvetica, Arial, sans-serif; font-size: 2.4rem; font-weight: bold;
              background: #fff; border: .35rem solid #000; border-radius: 1.2rem; padding: .6rem 2rem; vertical-align: middle; }
   .kiosk #exitbtn { display: inline-block; }
+  #sleepnote { font-size: 2.3rem; font-weight: bold; margin-right: 1.6rem; }
+  #sleepnote:empty { display: none; }
+  .asleep #wlabel, .asleep #date, .asleep #exitbtn, .asleep #reloadbtn { display: none !important; }
   #reloadbtn { margin-left: 1.6rem; font-family: Helvetica, Arial, sans-serif; font-size: 2.6rem; font-weight: bold;
                background: #fff; border: .35rem solid #000; border-radius: 1.2rem; padding: .4rem 1.6rem; vertical-align: middle; }
   #holding { font-size: 2.5rem; margin: -.4rem 0 .6rem; padding: .6rem 1.4rem; white-space: nowrap; overflow: hidden; border: .25rem solid #000; border-radius: 1.2rem; }
@@ -145,7 +148,7 @@
 <body>
 
 <section id="weather">
-  <div class="topbar"><span id="clock" onclick="toggleFull()">--:--</span><span class="label" id="wlabel">Weather</span><span><span id="date" class="sans"></span><button id="reloadbtn" onclick="reloadFresh()"><svg viewBox="0 0 24 24" style="width:2.6rem;height:2.6rem;vertical-align:middle"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2.2a5.8 5.8 0 1 1-1.7-4.1L13 11h7V4z" fill="#000"/></svg></button><button id="exitbtn" onclick="exitKiosk()">Exit</button></span></div>
+  <div class="topbar"><span id="clock" onclick="toggleFull()">--:--</span><span class="label" id="wlabel">Weather</span><span><span id="sleepnote" class="sans"></span><span id="date" class="sans"></span><button id="reloadbtn" onclick="reloadFresh()"><svg viewBox="0 0 24 24" style="width:2.6rem;height:2.6rem;vertical-align:middle"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2.2a5.8 5.8 0 1 1-1.7-4.1L13 11h7V4z" fill="#000"/></svg></button><button id="exitbtn" onclick="exitKiosk()">Exit</button></span></div>
   <div class="now">
     <span id="wicon"></span>
     <span id="temp">--°</span>
@@ -245,6 +248,7 @@ function loadWeather() {
   p.then(renderWeather).catch(function () { setHTML("nowinfo", '<span class="err">Weather unavailable</span>'); });
 }
 function renderWeather(w) {
+  weatherAt = Date.now();
   var c = w.current;
   setHTML("wlabel", esc(C.CITY) + " · weather");
   setHTML("wicon", icon(c.weather_code, !c.is_day));
@@ -286,7 +290,9 @@ function loadStock() {
   p.then(function (res) { renderStock(res[0], res[1]); })
    .catch(function (e) { setHTML("stockinfo", "Stock unavailable: " + esc(e.message || e)); });
 }
+var stockAt = 0, marketOpen = true, weatherAt = 0;
 function renderStock(q, ts) {
+  stockAt = Date.now(); marketOpen = !!q.is_market_open;
   var price = parseFloat(q.close), prev = parseFloat(q.previous_close);
   var ch = parseFloat(q.change), pct = parseFloat(q.percent_change);
   setHTML("price", "$" + price.toFixed(2));
@@ -514,11 +520,18 @@ function renderSpotify(state) {
   if (keep) $("msg").innerHTML = keep;
 }
 
+var spNextPoll = 0;
 function pollSpotify() {
   if (DEMO) { renderSpotify(demoPlayer()); return; }
   if (!load("sp_refresh") || busy) { renderSpotify(null); return; }
+  spNextPoll = Date.now() + 120000; // default when nothing plays: every 2 minutes
   sp("GET", "/me/player").then(function (s) {
     lastState = s;
+    if (s && s.is_playing && s.item && s.item.duration_ms) {
+      // check again right when this song ends (between 20 s and 4 min from now)
+      var left = s.item.duration_ms - (s.progress_ms || 0) + 2000;
+      spNextPoll = Date.now() + Math.max(20000, Math.min(240000, left));
+    }
     var key = s && s.item ? s.item.id + s.is_playing + (s.device && s.device.id) + (s.device && s.device.volume_percent) : "none";
     if (key !== pollSpotify.key) { pollSpotify.key = key; renderSpotify(s); }
   }).catch(function (e) {
@@ -907,6 +920,55 @@ function exitKiosk() {
   setTimeout(function () { setHTML("exitbtn", "Exit"); }, 8000); // if nothing happened, the power button still works
 }
 
+/* ---------------- one scheduler for everything (uses the wall clock, so it also works after deep sleep) ----------------
+   Battery saver: when started by the Dashboard launcher, the page asks the launcher to put the Kindle into deep sleep
+   after a while without touches. The launcher wakes it on a timer to refresh, or when the power button is pressed. */
+var lastTick = Date.now(), lastTouch = Date.now(), wokeAt = Date.now(), sleepAskedAt = 0, sleepBroken = 0;
+var MIN = 60000;
+function nightNow() { var h = localNow().getHours(); return h >= (C.NIGHT_FROM == null ? 23 : C.NIGHT_FROM) || h < (C.NIGHT_TO == null ? 7 : C.NIGHT_TO); }
+document.addEventListener("touchstart", function () { lastTouch = Date.now(); }, true);
+document.addEventListener("mousedown", function () { lastTouch = Date.now(); }, true);
+function tick() {
+  var now = Date.now();
+  if (now - lastTick > 30000) {             // the clock jumped: we were asleep
+    wokeAt = now; setAsleep(false);
+    if (sleepAskedAt && now - sleepAskedAt < 40000) sleepBroken = 0;
+    spNextPoll = 0;                          // refresh Spotify right away
+  } else if (sleepAskedAt && now - sleepAskedAt > 25000 && now - sleepAskedAt < 40000 && $("sleepnote").innerHTML) {
+    setAsleep(false); sleepBroken = now;     // sleep request had no effect (not started by the launcher)
+  }
+  lastTick = now;
+  tickClock();
+  if (now - weatherAt > (C.WEATHER_EVERY_MIN || 60) * MIN) { weatherAt = now; loadWeather(); }
+  if (now - stockAt > (marketOpen ? (C.STOCK_EVERY_MIN || 10) : 60) * MIN) { stockAt = now; loadStock(); }
+  if (now >= spNextPoll) { spNextPoll = now + 120000; pollSpotify(); }
+  if (now - updateAt > 30 * MIN) { checkForUpdate(); updateAt = now; }
+  maybeSleep(now);
+}
+function startScheduler() { tick(); setInterval(tick, 5000); }
+
+function setAsleep(on) {
+  setHTML("sleepnote", on ? "Asleep · press the power button to wake" : "");
+  var h = document.documentElement;
+  h.className = on ? (h.className + " asleep") : h.className.replace(/\s*asleep/g, "");
+}
+function maybeSleep(now) {
+  if (!KIOSK || C.BATTERY_SAVER === false) return;
+  if (sleepBroken && now - sleepBroken < 10 * MIN) return;          // launcher not answering: try again later
+  if ($("overlay").className) return;                                  // a menu is open
+  if (now - lastTouch < (C.SLEEP_AFTER_MIN || 2) * MIN) return;        // still in use
+  if (now - wokeAt < 50000) return;                                    // just woke: give Wi-Fi + updates time
+  if (now - sleepAskedAt < 45000) return;
+  sleepAskedAt = now;
+  setAsleep(true);
+  var port = nightNow() ? 8768 : 8767;                                 // 8767 = short sleep, 8768 = long night sleep
+  setTimeout(function () {                                             // let the e-ink draw the note first
+    var u = "http://127.0.0.1:" + port + "/sleep?" + Date.now();
+    try { new Image().src = u; } catch (e) {}
+    try { fetch(u, { mode: "no-cors" }).catch(function () {}); } catch (e) {}
+  }, 1500);
+}
+
 /* ---------------- refresh: button + automatic update check ---------------- */
 function reloadFresh() {
   setHTML("reloadbtn", "…");
@@ -925,7 +987,7 @@ function checkForUpdate() {
     else if (h !== pageHash && !$("overlay").className) reloadFresh(); // new upload: reload (not while a menu is open)
   }).catch(function () {});
 }
-setTimeout(checkForUpdate, 20000); setInterval(checkForUpdate, 5 * 60000);
+var updateAt = 0;
 
 /* ---------------- start ---------------- */
 // tell the Dashboard launcher (if it is waiting) that this page really loaded
@@ -940,16 +1002,15 @@ if (KIOSK) {
   setTimeout(pingReady, 1500);
 }
 (function () { var kb = $("kb"); kb.addEventListener("touchstart", kbPress, false); kb.addEventListener("mousedown", kbPress, false); })();
-tickClock(); setInterval(tickClock, 20000);
-loadWeather(); setInterval(loadWeather, (C.WEATHER_EVERY_MIN || 30) * 60000);
-renderHolding(); loadStock(); setInterval(loadStock, (C.STOCK_EVERY_MIN || 10) * 60000);
+tickClock(); renderHolding();
 if (DEMO && /[?&]search=1/.test(location.search)) setTimeout(openSearch, 50);
 if (DEMO && /[?&]devices=1/.test(location.search)) setTimeout(openDevices, 50);
 if (DEMO && /[?&]hold=1/.test(location.search)) setTimeout(openHoldings, 50);
+if (DEMO && /[?&]asleep=1/.test(location.search)) setTimeout(function () { setAsleep(true); }, 50);
 if (DEMO && /[?&]songs=1/.test(location.search)) setTimeout(function () { openPlaylists(); openPlaylist(0); }, 60);
 if (DEMO && /[?&]typed=1/.test(location.search)) setTimeout(function () { "midnight".split("").forEach(kbKey); }, 80);
 if (DEMO && /[?&]press=1/.test(location.search)) setTimeout(function () { var b = document.querySelector('#kb button[data-k="g"]'); pressFeedback(b, "g"); clearTimeout(popTimer); }, 150);
-handleRedirect().then(function () { pollSpotify(); setInterval(pollSpotify, (C.SPOTIFY_EVERY_SEC || 15) * 1000); });
+handleRedirect().then(function () { startScheduler(); });
 </script>
 </body>
 </html>
