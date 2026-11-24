@@ -30,19 +30,21 @@
   /* weather */
   #weather { flex: 0 0 auto; }
   .now { display: flex; align-items: center; gap: 2.5rem; margin: .6rem 0 1rem; }
-  .now svg { width: 12rem; height: 12rem; flex: none; }
-  #temp { font-size: 11rem; font-weight: bold; line-height: 1; letter-spacing: -.5rem; }
-  .nowinfo { font-size: 2.6rem; line-height: 1.35; margin-left: auto; text-align: right; }
-  .nowinfo b { font-size: 3.2rem; }
+  .now svg { width: 8.5rem; height: 8.5rem; flex: none; }
+  #temp { font-size: 8rem; font-weight: bold; line-height: 1; letter-spacing: -.5rem; }
+  .nowinfo { font-size: 2.3rem; line-height: 1.3; margin-left: auto; text-align: right; }
+  .nowinfo b { font-size: 2.7rem; }
   .hours, .days { display: flex; justify-content: space-between; text-align: center; }
   .hours { border-top: .2rem solid #999; padding-top: 1rem; margin-bottom: 1rem; }
   .hours div, .days div { flex: 1; font-family: Helvetica, Arial, sans-serif; }
   .hours .h { font-size: 2.3rem; color: #444; }
-  .hours svg, .days svg { width: 4.4rem; height: 4.4rem; display: block; margin: .2rem auto; }
-  .hours .t { font-size: 2.8rem; font-weight: bold; }
+  .hours svg { width: 3.6rem; height: 3.6rem; display: block; margin: 0 auto; }
+  .days svg { width: 3.4rem; height: 3.4rem; flex: none; }
+  .hours .t { font-size: 2.5rem; font-weight: bold; }
   .hours .p, .days .p { font-size: 2.1rem; color: #444; }
-  .days .d { font-size: 2.4rem; font-weight: bold; }
-  .days .t { font-size: 2.6rem; }
+  .days .d { font-size: 2.2rem; font-weight: bold; }
+  .days .t { font-size: 2.2rem; }
+  .days > div { display: flex; align-items: center; justify-content: center; gap: .6rem; }
 
   /* stock */
   #stock { flex: 0 0 auto; }
@@ -58,24 +60,42 @@
 
   /* spotify */
   #spotify { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
-  #track { font-size: 4.4rem; font-weight: bold; line-height: 1.15; margin-top: .6rem;
+  #track { font-size: 5.2rem; font-weight: bold; line-height: 1.15; margin-top: .6rem;
            overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
   #artist { font-size: 3rem; margin-top: .3rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   #device { font-family: Helvetica, Arial, sans-serif; font-size: 2.3rem; color: #444; margin-top: .5rem; }
   .controls { display: flex; justify-content: space-between; gap: 2.4rem; margin-top: auto; padding-top: 1.4rem; }
   .controls button, .row2 button, .big {
-    flex: 1; background: #fff; border: .5rem solid #000; border-radius: 2rem; height: 11rem;
+    flex: 1; background: #fff; border: .5rem solid #000; border-radius: 2rem; height: 14rem;
     display: flex; align-items: center; justify-content: center; }
-  .controls button svg { width: 6rem; height: 6rem; }
+  .controls button svg { width: 7rem; height: 7rem; }
   .controls button.main { background: #000; flex: 1.3; }
   .controls button.main svg { fill: #fff; }
   .row2 { display: flex; gap: 2.4rem; margin-top: 2rem; }
-  .row2 button { height: 9rem; font-family: Helvetica, Arial, sans-serif; font-size: 3.4rem; font-weight: bold; }
+  .row2 button { height: 11rem; font-family: Helvetica, Arial, sans-serif; font-size: 3.4rem; font-weight: bold; }
   .row2 button.tv { flex: 2.2; }
   #msg { font-family: Helvetica, Arial, sans-serif; font-size: 2.3rem; min-height: 2.8rem; margin-top: .8rem; text-align: center; }
   .big { width: 100%; font-family: Helvetica, Arial, sans-serif; font-size: 3.8rem; font-weight: bold; height: 13rem; margin-top: 3rem; }
   .err { font-family: Helvetica, Arial, sans-serif; font-size: 2.6rem; color: #333; }
   html.pc body { overflow: auto; height: auto; min-height: 100%; }
+  #spbody { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+  .sphead { display: flex; justify-content: space-between; align-items: center; }
+  #searchbtn { font-family: Helvetica, Arial, sans-serif; font-size: 2.6rem; font-weight: bold; background: #fff;
+               border: .4rem solid #000; border-radius: 1.4rem; padding: .7rem 3rem; }
+  #overlay { display: none; position: fixed; left: 0; top: 0; right: 0; bottom: 0; background: #fff; z-index: 10;
+             padding: 3rem 4.5rem; flex-direction: column; }
+  #overlay.open { display: flex; }
+  .sbar { display: flex; gap: 1.6rem; }
+  #q { flex: 1; font-size: 3.6rem; padding: 1.4rem 2rem; border: .4rem solid #000; border-radius: 1.4rem; font-family: Helvetica, Arial, sans-serif; }
+  .sbar button { font-family: Helvetica, Arial, sans-serif; font-size: 3rem; font-weight: bold; background: #000; color: #fff;
+                 border: .4rem solid #000; border-radius: 1.4rem; padding: 0 3rem; }
+  .sbar button.x { background: #fff; color: #000; padding: 0 2.4rem; }
+  #results { margin-top: 2rem; overflow-y: auto; flex: 1; }
+  #results h3 { font-family: Helvetica, Arial, sans-serif; font-size: 2.2rem; letter-spacing: .4rem; text-transform: uppercase; color: #444; margin: 2rem 0 .6rem; }
+  .res { display: block; width: 100%; text-align: left; background: #fff; border: none; border-bottom: .2rem solid #bbb; padding: 1.8rem .4rem; }
+  .res b { display: block; font-family: Georgia, serif; font-size: 3.4rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .res span { display: block; font-family: Helvetica, Arial, sans-serif; font-size: 2.4rem; color: #444; margin-top: .4rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  #smsg { font-family: Helvetica, Arial, sans-serif; font-size: 2.6rem; margin-top: 1.4rem; min-height: 3rem; }
 </style>
 </head>
 <body>
@@ -92,22 +112,27 @@
 </section>
 
 <section id="stock">
-  <div class="label" id="slabel">Stock</div>
+  <div class="sphead"><span class="label" id="slabel">Stock</span><span class="sans muted" id="stockinfo" style="font-size:2.2rem"></span></div>
   <div class="stockrow">
     <span id="price">$--</span>
     <span id="change"></span>
   </div>
   <svg id="chart" viewBox="0 0 1000 200" preserveAspectRatio="none"></svg>
-  <div class="chartbar">
-    <span class="sans muted" id="stockinfo" style="font-size:2.3vw"></span>
-    <div class="seg"><button id="r1d" class="on" onclick="setRange('1d')">1D</button><button id="r1m" onclick="setRange('1m')">1M</button></div>
-  </div>
 </section>
 
 <section id="spotify">
-  <div class="label">Spotify</div>
+  <div class="sphead"><span class="label">Spotify</span><button id="searchbtn" onclick="openSearch()">Search</button></div>
   <div id="spbody"></div>
 </section>
+
+<div id="overlay">
+  <form class="sbar" onsubmit="doSearch(); return false;">
+    <input id="q" type="text" placeholder="Song, artist or playlist" autocomplete="off">
+    <button type="submit">Go</button><button type="button" class="x" onclick="closeSearch()">✕</button>
+  </form>
+  <div id="smsg"></div>
+  <div id="results"></div>
+</div>
 
 <script>
 var C = window.DASH_CONFIG || {};
@@ -185,21 +210,20 @@ function renderWeather(w) {
   for (var k = 0; k < 6; k++) {
     var j = start + k * 2;
     out += '<div><div class="h">' + h.time[j].slice(11, 16) + "</div>" + icon(h.weather_code[j], !h.is_day[j]) +
-      '<div class="t">' + Math.round(h.temperature_2m[j]) + '°</div><div class="p">' + (h.precipitation_probability[j] || 0) + "%</div></div>";
+      '<div class="t">' + Math.round(h.temperature_2m[j]) + '°</div><div class="p">' + ((h.precipitation_probability[j] || 0) >= 30 ? h.precipitation_probability[j] + "%" : "&nbsp;") + "</div></div>";
   }
   setHTML("hours", out);
   var d = w.daily, dout = "";
   for (var n = 1; n < Math.min(6, d.time.length); n++) {
     var dt = new Date(d.time[n] + "T12:00:00");
-    dout += '<div><div class="d">' + DAYS[dt.getDay()] + "</div>" + icon(d.weather_code[n], false) +
-      '<div class="t"><b>' + Math.round(d.temperature_2m_max[n]) + "°</b> " + Math.round(d.temperature_2m_min[n]) + '°</div><div class="p">' + (d.precipitation_probability_max[n] || 0) + "%</div></div>";
+    dout += '<div><span class="d">' + DAYS[dt.getDay()] + "</span>" + icon(d.weather_code[n], false) +
+      '<span class="t"><b>' + Math.round(d.temperature_2m_max[n]) + "°</b>/" + Math.round(d.temperature_2m_min[n]) + "°</span></div>";
   }
   setHTML("days", dout);
 }
 
 /* ---------------- stock (Twelve Data, free plan) ---------------- */
 var range = "1d";
-function setRange(r) { range = r; $("r1d").className = r === "1d" ? "on" : ""; $("r1m").className = r === "1m" ? "on" : ""; loadStock(); }
 function td(path) {
   return fetch("https://api.twelvedata.com/" + path + "&apikey=" + encodeURIComponent(C.TWELVE_DATA_KEY))
     .then(function (r) { return r.json(); })
@@ -222,7 +246,7 @@ function renderStock(q, ts) {
   setHTML("change", (ch >= 0 ? "▲ +" : "▼ ") + ch.toFixed(2) + " (" + (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%)" +
     "<small>" + (q.is_market_open ? "Market open" : "Market closed") + "</small>");
   var t = localNow(), ys0 = [];
-  var setInfo = function () { setHTML("stockinfo", "Updated " + pad(t.getHours()) + ":" + pad(t.getMinutes()) + (range === "1d" ? " · today" : " · 1 month") + (ys0.length ? " · range $" + Math.min.apply(null, ys0).toFixed(0) + "–" + Math.max.apply(null, ys0).toFixed(0) : "")); };
+  var setInfo = function () { setHTML("stockinfo", "Updated " + pad(t.getHours()) + ":" + pad(t.getMinutes()) + (ys0.length ? " · range $" + Math.min.apply(null, ys0).toFixed(0) + "–" + Math.max.apply(null, ys0).toFixed(0) : "")); };
   var vals = (ts.values || []).slice().reverse();
   if (range === "1d" && vals.length) { // keep only the most recent trading day
     var lastDay = vals[vals.length - 1].datetime.slice(0, 10);
@@ -375,7 +399,7 @@ function renderSpotify(state) {
   var dev = state && state.device;
   var html =
     '<div id="track">' + esc(item ? item.name : "Nothing playing") + "</div>" +
-    '<div id="artist" class="sans">' + esc(item ? (item.artists || []).map(function (a) { return a.name; }).join(", ") : "Tap “Play on TV” to start") + "</div>" +
+    '<div id="artist" class="sans">' + esc(item ? (item.artists || []).map(function (a) { return a.name; }).join(", ") : "Tap ▶ to start on the TV") + "</div>" +
     '<div id="device">' + (dev ? "▶ " + esc(dev.name) + (dev.volume_percent != null ? " · volume " + dev.volume_percent + "%" : "") : "No active device") + "</div>" +
     '<div class="controls">' +
       '<button onclick="act(\'prev\')">' + ICONS.prev + "</button>" +
@@ -384,7 +408,6 @@ function renderSpotify(state) {
     "</div>" +
     '<div class="row2">' +
       '<button onclick="act(\'voldown\')">Vol −</button>' +
-      '<button class="tv" onclick="act(\'tv\')">Play on TV</button>' +
       '<button onclick="act(\'volup\')">Vol +</button>' +
     "</div><div id=\"msg\"></div>";
   if (!isKindle()) html = '<button class="big" style="height:8rem;font-size:3rem;margin:1rem 0 1.5rem" onclick="sendToKindle()">Send login to Kindle</button>' + html;
@@ -420,14 +443,16 @@ function act(what) {
   var s = lastState, dev = s && s.device, vol = dev && dev.volume_percent != null ? dev.volume_percent : 50;
   var p;
   if (what === "tv") p = findTV().then(function (tv) { return sp("PUT", "/me/player", { device_ids: [tv.id], play: true }); });
-  else if (what === "toggle") p = sp("PUT", "/me/player/" + (s && s.is_playing ? "pause" : "play"));
+  else if (what === "toggle") p = (dev && dev.id)
+    ? sp("PUT", "/me/player/" + (s.is_playing ? "pause" : "play"))
+    : findTV().then(function (tv) { setMsg("Starting on " + tv.name + "…"); return sp("PUT", "/me/player", { device_ids: [tv.id], play: true }); });
   else if (what === "next") p = sp("POST", "/me/player/next");
   else if (what === "prev") p = sp("POST", "/me/player/previous");
   else if (what === "volup") p = sp("PUT", "/me/player/volume?volume_percent=" + Math.min(100, vol + 10));
   else if (what === "voldown") p = sp("PUT", "/me/player/volume?volume_percent=" + Math.max(0, vol - 10));
   p.then(function () { setMsg(""); })
    .catch(function (e) {
-     if (e.reason === "NO_ACTIVE_DEVICE" || e.status === 404) setMsg("No active device — tap “Play on TV”.");
+     if (e.reason === "NO_ACTIVE_DEVICE" || e.status === 404) setMsg("No active device — open Spotify on the TV and tap ▶ again.");
      else if (e.status === 403) setMsg("Spotify refused (" + e.message + ")");
      else setMsg(e.message);
    })
@@ -490,6 +515,61 @@ function sendToKindle() {
     .catch(function (e) { alert("Could not send: " + e.message); });
 }
 
+
+/* ---------------- search (GET /search, max 10 per type) ---------------- */
+var lastResults = [];
+function openSearch() {
+  $("overlay").className = "open"; setHTML("smsg", ""); 
+  if (DEMO) { showResults(demoSearch(), "Results"); return; }
+  setHTML("results", "");
+  // before typing: show your own playlists as quick picks
+  sp("GET", "/me/playlists?limit=10").then(function (j) {
+    if (!$("q").value) showResults({ playlists: { items: (j && j.items) || [] } }, "Your playlists");
+  }).catch(function () {});
+  setTimeout(function () { try { $("q").focus(); } catch (e) {} }, 300);
+}
+function closeSearch() { $("overlay").className = ""; try { $("q").blur(); } catch (e) {} }
+function doSearch() {
+  var q = $("q").value.trim(); if (!q) return;
+  try { $("q").blur(); } catch (e) {}
+  setHTML("smsg", "Searching…");
+  sp("GET", "/search?type=track,artist,playlist&limit=5&q=" + encodeURIComponent(q))
+    .then(function (j) { setHTML("smsg", ""); showResults(j || {}, null); })
+    .catch(function (e) { setHTML("smsg", "Search failed: " + esc(e.message)); });
+}
+function showResults(j, title) {
+  lastResults = []; var html = title ? "<h3>" + esc(title) + "</h3>" : "";
+  function add(kind, items, sub) {
+    items = (items || []).filter(function (x) { return x; });
+    if (!items.length) return;
+    if (!title) html += "<h3>" + kind + "</h3>";
+    items.forEach(function (it) {
+      var i = lastResults.push(it) - 1;
+      html += '<button class="res" onclick="playResult(' + i + ')"><b>' + esc(it.name) + "</b><span>" + esc(sub(it)) + "</span></button>";
+    });
+  }
+  add("Songs", j.tracks && j.tracks.items, function (t) { return (t.artists || []).map(function (a) { return a.name; }).join(", ") + (t.album ? " · " + t.album.name : ""); });
+  add("Artists", j.artists && j.artists.items, function () { return "Artist · plays their top songs"; });
+  add("Playlists", j.playlists && j.playlists.items, function (pl) { return "Playlist" + (pl.owner && pl.owner.display_name ? " · by " + pl.owner.display_name : ""); });
+  setHTML("results", html || '<div class="sans" style="font-size:2.8rem;margin-top:2rem">No results.</div>');
+}
+function playResult(i) {
+  var it = lastResults[i]; if (!it || DEMO) return;
+  var body = it.type === "track" ? { uris: [it.uri] } : { context_uri: it.uri };
+  setHTML("smsg", "Starting…");
+  var dev = lastState && lastState.device;
+  var target = dev && dev.id ? Promise.resolve(dev) : findTV();
+  target.then(function (d) { return sp("PUT", "/me/player/play?device_id=" + encodeURIComponent(d.id), body); })
+    .then(function () { closeSearch(); setTimeout(pollSpotify, 1200); })
+    .catch(function (e) { setHTML("smsg", esc(e.message)); });
+}
+function demoSearch() {
+  return { tracks: { items: [{ name: "Midnight City", artists: [{ name: "M83" }], album: { name: "Hurry Up, We're Dreaming" } },
+                             { name: "Wait", artists: [{ name: "M83" }], album: { name: "Hurry Up, We're Dreaming" } }] },
+           artists: { items: [{ name: "M83" }] },
+           playlists: { items: [{ name: "This Is M83", owner: { display_name: "Spotify" } }] } };
+}
+
 /* ---------------- demo data (for previewing the layout: add ?demo=1 to the URL) ---------------- */
 function demoWeather() {
   var hourly = { time: [], temperature_2m: [], precipitation_probability: [], weather_code: [], is_day: [] };
@@ -515,6 +595,7 @@ function demoPlayer() {
 tickClock(); setInterval(tickClock, 20000);
 loadWeather(); setInterval(loadWeather, (C.WEATHER_EVERY_MIN || 30) * 60000);
 loadStock(); setInterval(loadStock, (C.STOCK_EVERY_MIN || 10) * 60000);
+if (DEMO && /[?&]search=1/.test(location.search)) setTimeout(openSearch, 50);
 handleRedirect().then(function () { pollSpotify(); setInterval(pollSpotify, (C.SPOTIFY_EVERY_SEC || 15) * 1000); });
 </script>
 </body>
