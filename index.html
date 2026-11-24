@@ -81,7 +81,7 @@
   #spbody { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
   .row0 { display: flex; gap: 2.4rem; margin-top: auto; padding-top: 1.6rem; }
   .row0 button { flex: 1; height: 10rem; background: #fff; border: .5rem solid #000; border-radius: 2rem;
-                 font-family: Helvetica, Arial, sans-serif; font-size: 3.6rem; font-weight: bold; }
+                 font-family: Helvetica, Arial, sans-serif; font-size: 3.3rem; font-weight: bold; }
   .sphead { display: flex; justify-content: space-between; align-items: center; }
   #searchbtn { font-family: Helvetica, Arial, sans-serif; font-size: 2.6rem; font-weight: bold; background: #fff;
                border: .4rem solid #000; border-radius: 1.4rem; padding: .7rem 3rem; }
@@ -89,7 +89,20 @@
              padding: 3rem 4.5rem; flex-direction: column; }
   #overlay.open { display: flex; }
   .sbar { display: flex; gap: 1.6rem; }
-  #q { flex: 1; font-size: 3.6rem; padding: 1.4rem 2rem; border: .4rem solid #000; border-radius: 1.4rem; font-family: Helvetica, Arial, sans-serif; }
+  #q { flex: 1; font-size: 3.6rem; padding: 1.4rem 2rem; border: .4rem solid #000; border-radius: 1.4rem; font-family: Helvetica, Arial, sans-serif;
+        min-height: 7.6rem; white-space: nowrap; overflow: hidden; }
+  #q .caret { font-weight: bold; }
+  .ohead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+  #otitle { font-family: Georgia, serif; font-size: 4.4rem; font-weight: bold; }
+  .ohead .x { font-family: Helvetica, Arial, sans-serif; font-size: 3rem; font-weight: bold; background: #fff;
+              border: .4rem solid #000; border-radius: 1.4rem; padding: 1.2rem 2.6rem; }
+  #kb { flex: none; margin-top: 1.4rem; }
+  #kb .r { display: flex; gap: .8rem; margin-top: .8rem; }
+  #kb button { flex: 1; height: 8.2rem; background: #fff; border: .3rem solid #000; border-radius: 1rem;
+               font-family: Helvetica, Arial, sans-serif; font-size: 3.4rem; padding: 0; }
+  #kb button.w2 { flex: 2; } #kb button.w4 { flex: 5; }
+  #kb button.dark { background: #000; color: #fff; font-weight: bold; }
+  .res.on b:before { content: "▶ "; }
   .sbar button { font-family: Helvetica, Arial, sans-serif; font-size: 3rem; font-weight: bold; background: #000; color: #fff;
                  border: .4rem solid #000; border-radius: 1.4rem; padding: 0 3rem; }
   .sbar button.x { background: #fff; color: #000; padding: 0 2.4rem; }
@@ -129,12 +142,13 @@
 </section>
 
 <div id="overlay">
-  <form class="sbar" onsubmit="doSearch(); return false;">
-    <input id="q" type="text" placeholder="Song, artist or playlist" autocomplete="off">
-    <button type="submit">Go</button><button type="button" class="x" onclick="closeSearch()">✕</button>
-  </form>
+  <div class="ohead"><span id="otitle"></span><button class="x" onclick="closeSearch()">✕ Close</button></div>
+  <div class="sbar" id="sbar">
+    <div id="q" onclick="showKb(true)"><span id="qtext"></span><span class="caret">|</span></div>
+  </div>
   <div id="smsg"></div>
   <div id="results"></div>
+  <div id="kb"></div>
 </div>
 
 <script>
@@ -274,7 +288,7 @@ function renderStock(q, ts) {
 
 /* ---------------- Spotify (Web API, PKCE login, Premium needed for playback control) ---------------- */
 var REDIRECT = location.origin + location.pathname;
-var SCOPES = "user-read-playback-state user-modify-playback-state user-read-currently-playing";
+var SCOPES = "user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative";
 var lastState = null, busy = false;
 
 function b64url(bytes) {
@@ -368,6 +382,11 @@ function sp(method, path, body) {
     if (r.status === 204 || r.status === 202) return null;
     return r.text().then(function (txt) {
       var j = null; try { j = txt ? JSON.parse(txt) : null; } catch (e) {}
+      if (r.status === 403 && /scope/i.test(txt)) {
+        store("sp_refresh", null); store("sp_access", null); store("sp_expires", null);
+        closeSearch(); pollSpotify.key = null; renderSpotify(null);
+        throw new Error("Please pair again (new permissions needed)");
+      }
       if (!r.ok) { var e2 = new Error((j && j.error && j.error.message) || ("HTTP " + r.status)); e2.status = r.status; e2.reason = j && j.error && j.error.reason; throw e2; }
       return j;
     });
@@ -404,7 +423,7 @@ function renderSpotify(state) {
     '<div id="track">' + esc(item ? item.name : "Nothing playing") + "</div>" +
     '<div id="artist" class="sans">' + esc(item ? (item.artists || []).map(function (a) { return a.name; }).join(", ") : "Tap ▶ to start on the TV") + "</div>" +
     '<div id="device">' + (dev ? "▶ " + esc(dev.name) + (dev.volume_percent != null ? " · volume " + dev.volume_percent + "%" : "") : "No active device") + "</div>" +
-    '<div class="row0"><button onclick="openSearch()">Search</button><button onclick="openPlaylists()">My playlists</button></div>' +
+    '<div class="row0"><button onclick="openSearch()">Search</button><button onclick="openPlaylists()">Playlists</button><button onclick="openDevices()">Devices</button></div>' +
     '<div class="controls">' +
       '<button onclick="act(\'prev\')">' + ICONS.prev + "</button>" +
       '<button class="main" onclick="act(\'toggle\')">' + (playing ? ICONS.pause : ICONS.play) + "</button>" +
@@ -434,10 +453,11 @@ function pollSpotify() {
 
 function findTV() {
   return sp("GET", "/me/player/devices").then(function (j) {
-    var list = (j && j.devices) || [], want = (C.TV_NAME_CONTAINS || "").toLowerCase();
+    var list = (j && j.devices) || [], pref = (load("sp_pref_device") || "").toLowerCase(), want = (C.TV_NAME_CONTAINS || "").toLowerCase();
+    for (var k = 0; k < list.length; k++) if (pref && list[k].name.toLowerCase() === pref) return list[k];
     for (var i = 0; i < list.length; i++) if (want && list[i].name.toLowerCase().indexOf(want) >= 0) return list[i];
     for (i = 0; i < list.length; i++) if (list[i].type === "TV") return list[i];
-    throw new Error("TV not found. Open Spotify on the TV first. Seen: " + (list.map(function (d) { return d.name; }).join(", ") || "no devices"));
+    throw new Error("Device not found — tap Devices. Seen: " + (list.map(function (d) { return d.name; }).join(", ") || "no devices"));
   });
 }
 
@@ -522,28 +542,79 @@ function sendToKindle() {
 
 /* ---------------- search (GET /search, max 10 per type) ---------------- */
 var lastResults = [];
+var KB_ROWS = [
+  "1234567890".split(""),
+  "qwertyuiop".split(""),
+  "asdfghjkl".split(""),
+  "zxcvbnm".split(""),
+  "ąčęėįšųūž".split("")
+];
+var query = "";
+function renderKb() {
+  var h = "";
+  KB_ROWS.forEach(function (row, i) {
+    h += '<div class="r">';
+    row.forEach(function (k) { h += '<button onclick="kbKey(\'' + k + '\')">' + k + "</button>"; });
+    if (i === 3) h += '<button class="w2" onclick="kbKey(\'BS\')">⌫</button>';
+    h += "</div>";
+  });
+  h += '<div class="r"><button class="w2" onclick="kbKey(\'CLR\')">Clear</button><button class="w4" onclick="kbKey(\' \')">space</button>' +
+       '<button class="w2 dark" onclick="doSearch()">Search</button></div>';
+  setHTML("kb", h);
+}
+function kbKey(k) {
+  if (k === "BS") query = query.slice(0, -1);
+  else if (k === "CLR") query = "";
+  else query += k;
+  setHTML("qtext", esc(query));
+}
+function showKb(on) { $("kb").style.display = on ? "block" : "none"; }
+function overlayMode(title, search) {
+  $("overlay").className = "open"; setHTML("otitle", esc(title)); setHTML("smsg", ""); setHTML("results", "");
+  $("sbar").style.display = search ? "flex" : "none";
+  showKb(search);
+}
 function openSearch() {
-  $("overlay").className = "open"; setHTML("smsg", ""); 
-  if (DEMO) { showResults(demoSearch(), "Results"); return; }
-  setHTML("results", "");
-  // before typing: show your own playlists as quick picks
-  sp("GET", "/me/playlists?limit=10").then(function (j) {
-    if (!$("q").value) showResults({ playlists: { items: (j && j.items) || [] } }, "Your playlists");
-  }).catch(function () {});
-  setTimeout(function () { try { $("q").focus(); } catch (e) {} }, 300);
+  overlayMode("Search", true); renderKb(); query = ""; setHTML("qtext", "");
+  if (DEMO) { showResults(demoSearch(), "Results"); }
 }
 function openPlaylists() {
-  $("overlay").className = "open"; setHTML("smsg", "Loading your playlists…"); setHTML("results", "");
-  if (DEMO) { setHTML("smsg", ""); showResults(demoSearch(), "Your playlists"); return; }
+  overlayMode("My playlists", false); setHTML("smsg", "Loading your playlists…");
+  if (DEMO) { setHTML("smsg", ""); showResults(demoSearch(), null); return; }
   sp("GET", "/me/playlists?limit=40").then(function (j) {
     setHTML("smsg", "");
-    showResults({ playlists: { items: (j && j.items) || [] } }, "Your playlists");
+    showResults({ playlists: { items: (j && j.items) || [] } }, "");
   }).catch(function (e) { setHTML("smsg", "Could not load playlists: " + esc(e.message)); });
 }
-function closeSearch() { $("overlay").className = ""; try { $("q").blur(); } catch (e) {} }
+var deviceList = [];
+function openDevices() {
+  overlayMode("Play on…", false); setHTML("smsg", "Looking for devices…");
+  var p = DEMO ? Promise.resolve({ devices: [{ id: "a", name: "Living Room", type: "TV", is_active: true }, { id: "b", name: "Telia TV 119", type: "TV" }, { id: "c", name: "Phone", type: "Smartphone" }] })
+               : sp("GET", "/me/player/devices");
+  p.then(function (j) {
+    deviceList = (j && j.devices) || [];
+    if (!deviceList.length) { setHTML("smsg", "No devices found. Open Spotify on the TV or phone, then try again."); return; }
+    setHTML("smsg", "Tap where the music should play:");
+    var h = "";
+    deviceList.forEach(function (d, i) {
+      h += '<button class="res' + (d.is_active ? " on" : "") + '" onclick="pickDevice(' + i + ')"><b>' + esc(d.name) + "</b><span>" +
+           esc(d.type) + (d.is_active ? " · playing now" : "") + (d.is_restricted ? " · can’t be controlled remotely" : "") + "</span></button>";
+    });
+    setHTML("results", h);
+  }).catch(function (e) { setHTML("smsg", "Could not load devices: " + esc(e.message)); });
+}
+function pickDevice(i) {
+  var d = deviceList[i]; if (!d || DEMO) return;
+  store("sp_pref_device", d.name);
+  setHTML("smsg", "Moving music to " + esc(d.name) + "…");
+  sp("PUT", "/me/player", { device_ids: [d.id], play: true })
+    .then(function () { closeSearch(); setTimeout(pollSpotify, 1200); })
+    .catch(function (e) { setHTML("smsg", esc(e.message)); });
+}
+function closeSearch() { $("overlay").className = ""; }
 function doSearch() {
-  var q = $("q").value.trim(); if (!q) return;
-  try { $("q").blur(); } catch (e) {}
+  var q = query.trim(); if (!q) return;
+  showKb(false);
   setHTML("smsg", "Searching…");
   sp("GET", "/search?type=track,artist,playlist&limit=5&q=" + encodeURIComponent(q))
     .then(function (j) { setHTML("smsg", ""); showResults(j || {}, null); })
@@ -551,6 +622,7 @@ function doSearch() {
 }
 function showResults(j, title) {
   lastResults = []; var html = title ? "<h3>" + esc(title) + "</h3>" : "";
+  if (title === "") title = "x"; // playlists view: no section headings
   function add(kind, items, sub) {
     items = (items || []).filter(function (x) { return x; });
     if (!items.length) return;
@@ -623,6 +695,8 @@ tickClock(); setInterval(tickClock, 20000);
 loadWeather(); setInterval(loadWeather, (C.WEATHER_EVERY_MIN || 30) * 60000);
 loadStock(); setInterval(loadStock, (C.STOCK_EVERY_MIN || 10) * 60000);
 if (DEMO && /[?&]search=1/.test(location.search)) setTimeout(openSearch, 50);
+if (DEMO && /[?&]devices=1/.test(location.search)) setTimeout(openDevices, 50);
+if (DEMO && /[?&]typed=1/.test(location.search)) setTimeout(function () { "midnight".split("").forEach(kbKey); }, 80);
 handleRedirect().then(function () { pollSpotify(); setInterval(pollSpotify, (C.SPOTIFY_EVERY_SEC || 15) * 1000); });
 </script>
 </body>
