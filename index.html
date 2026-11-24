@@ -9,6 +9,7 @@
   function fitUnit() { var u = Math.min(window.innerWidth, window.innerHeight * 0.725) / 100;
     document.documentElement.style.fontSize = u + "px"; }
   fitUnit(); window.addEventListener("resize", fitUnit);
+  if (!/kindle|silk|armv7l/i.test(navigator.userAgent)) document.documentElement.className = 'pc';
 </script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -74,6 +75,7 @@
   #msg { font-family: Helvetica, Arial, sans-serif; font-size: 2.3rem; min-height: 2.8rem; margin-top: .8rem; text-align: center; }
   .big { width: 100%; font-family: Helvetica, Arial, sans-serif; font-size: 3.8rem; font-weight: bold; height: 13rem; margin-top: 3rem; }
   .err { font-family: Helvetica, Arial, sans-serif; font-size: 2.6rem; color: #333; }
+  html.pc body { overflow: auto; height: auto; min-height: 100%; }
 </style>
 </head>
 <body>
@@ -384,8 +386,8 @@ function renderSpotify(state) {
       '<button onclick="act(\'voldown\')">Vol −</button>' +
       '<button class="tv" onclick="act(\'tv\')">Play on TV</button>' +
       '<button onclick="act(\'volup\')">Vol +</button>' +
-    "</div><div id=\"msg\"></div>" +
-    (isKindle() ? "" : '<button class="big" style="height:9rem;font-size:3rem" onclick="sendToKindle()">Send login to Kindle</button>');
+    "</div><div id=\"msg\"></div>";
+  if (!isKindle()) html = '<button class="big" style="height:8rem;font-size:3rem;margin:1rem 0 1.5rem" onclick="sendToKindle()">Send login to Kindle</button>' + html;
   var keep = $("msg") ? $("msg").innerHTML : "";
   setHTML("spbody", html);
   if (keep) $("msg").innerHTML = keep;
