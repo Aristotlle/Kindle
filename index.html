@@ -52,7 +52,7 @@
   #price { font-size: 8.5rem; font-weight: bold; line-height: 1; }
   #change { font-family: Helvetica, Arial, sans-serif; font-size: 3.4rem; font-weight: bold; text-align: right; }
   #change small { display: block; font-size: 2.3rem; font-weight: normal; color: #444; margin-top: .6rem; }
-  #chart { width: 100%; height: 11rem; display: block; }
+  #chart { width: 100%; height: 9rem; display: block; }
   .chartbar { display: flex; justify-content: space-between; align-items: center; margin-top: .8rem; }
   .seg { display: flex; border: .35rem solid #000; }
   .seg button { border: none; background: #fff; font-size: 2.4rem; padding: .5rem 2.6rem; font-family: Helvetica, Arial, sans-serif; }
@@ -79,12 +79,22 @@
   .err { font-family: Helvetica, Arial, sans-serif; font-size: 2.6rem; color: #333; }
   html.pc body { overflow: auto; height: auto; min-height: 100%; }
   #spbody { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+  #spbody > * { flex: none; }
   .row0 { display: flex; gap: 2.4rem; margin-top: auto; padding-top: 1.6rem; }
   .row0 button { flex: 1; height: 10rem; background: #fff; border: .5rem solid #000; border-radius: 2rem;
                  font-family: Helvetica, Arial, sans-serif; font-size: 3.3rem; font-weight: bold; }
   #exitbtn { display: none; margin-left: 2rem; font-family: Helvetica, Arial, sans-serif; font-size: 2.4rem; font-weight: bold;
              background: #fff; border: .35rem solid #000; border-radius: 1.2rem; padding: .6rem 2rem; vertical-align: middle; }
   .kiosk #exitbtn { display: inline-block; }
+  #holding { font-size: 2.5rem; margin: -.4rem 0 .6rem; padding: .6rem 1.4rem; white-space: nowrap; overflow: hidden; border: .25rem solid #000; border-radius: 1.2rem; }
+  #holding b { font-size: 2.9rem; }
+  #holding.empty { border-style: dashed; color: #555; text-align: center; }
+  .hfield { display: flex; justify-content: space-between; align-items: center; border: .4rem solid #bbb; border-radius: 1.4rem;
+            padding: 2rem 2.4rem; margin-bottom: 1.6rem; font-family: Helvetica, Arial, sans-serif; }
+  .hfield.on { border-color: #000; }
+  .hfield span { font-size: 2.8rem; color: #444; }
+  .hfield b { font-size: 4.6rem; }
+  .hnote { font-family: Helvetica, Arial, sans-serif; font-size: 2.4rem; color: #444; line-height: 1.4; }
   .sphead { display: flex; justify-content: space-between; align-items: center; }
   #searchbtn { font-family: Helvetica, Arial, sans-serif; font-size: 2.6rem; font-weight: bold; background: #fff;
                border: .4rem solid #000; border-radius: 1.4rem; padding: .7rem 3rem; }
@@ -149,6 +159,7 @@
     <span id="price">$--</span>
     <span id="change"></span>
   </div>
+  <div id="holding" class="sans" onclick="openHoldings()"></div>
   <svg id="chart" viewBox="0 0 1000 200" preserveAspectRatio="none"></svg>
 </section>
 
@@ -279,6 +290,7 @@ function renderStock(q, ts) {
   setHTML("price", "$" + price.toFixed(2));
   setHTML("change", (ch >= 0 ? "▲ +" : "▼ ") + ch.toFixed(2) + " (" + (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%)" +
     "<small>" + (q.is_market_open ? "Market open" : "Market closed") + "</small>");
+  lastPrice = price; lastChange = ch; renderHolding();
   var t = localNow(), ys0 = [];
   var setInfo = function () { setHTML("stockinfo", "Updated " + pad(t.getHours()) + ":" + pad(t.getMinutes()) + (ys0.length ? " · range $" + Math.min.apply(null, ys0).toFixed(0) + "–" + Math.max.apply(null, ys0).toFixed(0) : "")); };
   var vals = (ts.values || []).slice().reverse();
@@ -301,6 +313,50 @@ function renderStock(q, ts) {
     '<rect x="' + (lastX - 4) + '" y="' + (Y(ys[ys.length - 1]) - 14).toFixed(1) + '" width="8" height="28" fill="#000"/>' : "") +
 "";
   var chart = $("chart"); if (chart.innerHTML !== svg) chart.innerHTML = svg;
+}
+
+/* ---------------- my holdings (stored only on this device) ---------------- */
+var lastPrice = null, lastChange = 0;
+function money(v) { var a = Math.abs(v), s = a.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ","); return "$" + s; }
+function renderHolding() {
+  var sh = parseFloat(load("hold_shares") || C.HOLD_SHARES || "0"), cost = parseFloat(load("hold_cost") || C.HOLD_COST || "0");
+  var el = $("holding");
+  if (!sh || !cost) { el.className = "sans empty"; setHTML("holding", "+ Add your " + esc(C.STOCK) + " holdings"); return; }
+  el.className = "sans";
+  if (lastPrice == null) { setHTML("holding", "Your " + sh.toFixed(2) + " shares"); return; }
+  var value = sh * lastPrice, pl = value - cost, pct = pl / cost * 100, today = sh * lastChange;
+  setHTML("holding", "My " + sh.toFixed(2) + " sh: <b>" + money(value) + "</b> · " +
+    (pl >= 0 ? "▲ +" : "▼ −") + money(pl) + " (" + (pl >= 0 ? "+" : "−") + Math.abs(pct).toFixed(2) + "%) · avg " + money(cost / sh));
+}
+var holdField = "shares", holdVals = { shares: "", cost: "" };
+function openHoldings() {
+  playlistsMode = false; holdMode = true;
+  overlayMode("My " + C.STOCK + " holdings", false);
+  holdVals = { shares: load("hold_shares") || "", cost: load("hold_cost") || "" };
+  holdField = "shares"; renderHoldForm();
+  renderKb(KB_NUM); showKb(true);
+}
+function renderHoldForm() {
+  var sh = parseFloat(holdVals.shares), cost = parseFloat(holdVals.cost);
+  setHTML("results",
+    '<div class="hfield' + (holdField === "shares" ? " on" : "") + '" onclick="holdField=\'shares\';renderHoldForm()"><span>Number of shares</span><b>' + (esc(holdVals.shares) || "—") + (holdField === "shares" ? "|" : "") + "</b></div>" +
+    '<div class="hfield' + (holdField === "cost" ? " on" : "") + '" onclick="holdField=\'cost\';renderHoldForm()"><span>Total paid ($)</span><b>' + (esc(holdVals.cost) || "—") + (holdField === "cost" ? "|" : "") + "</b></div>" +
+    '<div class="hnote">' + (sh && cost ? "Average price: <b>" + money(cost / sh) + "</b> per share. " : "") +
+    "Tap a box to edit it. Saved only on this Kindle, never online. Enter 0 and Save to remove.</div>");
+}
+function holdKey(k) {
+  var v = holdVals[holdField];
+  if (k === "BS") v = v.slice(0, -1);
+  else if (k === "CLR") v = "";
+  else if (k === "SAVE") {
+    var sh = parseFloat(holdVals.shares), cost = parseFloat(holdVals.cost);
+    if (sh > 0 && cost > 0) { store("hold_shares", String(sh)); store("hold_cost", String(cost)); }
+    else { store("hold_shares", null); store("hold_cost", null); }
+    holdMode = false; closeSearch(); renderHolding(); return;
+  }
+  else if (k === "." && v.indexOf(".") >= 0) return;
+  else v += k;
+  holdVals[holdField] = v; renderHoldForm();
 }
 
 /* ---------------- Spotify (Web API, PKCE login, Premium needed for playback control) ---------------- */
@@ -572,12 +628,20 @@ var KB_LAYOUT = [
   { cls: "",       keys: ["CLR"].concat("zxcvbnm".split("")).concat(["BS"]) },
   { cls: "",       keys: ["SPACE", "GO"] }
 ];
-var KB_LABEL = { CLR: "clear", BS: "⌫", SPACE: "space", GO: "Search" };
-var KB_CLASS = { CLR: "sp", BS: "sp", SPACE: "space", GO: "go" };
+var KB_NUM = [
+  { cls: "", keys: ["1", "2", "3"] },
+  { cls: "", keys: ["4", "5", "6"] },
+  { cls: "", keys: ["7", "8", "9"] },
+  { cls: "", keys: [".", "0", "BS"] },
+  { cls: "", keys: ["CLR", "SAVE"] }
+];
+var KB_LABEL = { CLR: "clear", BS: "⌫", SPACE: "space", GO: "Search", SAVE: "Save" };
+var KB_CLASS = { CLR: "sp", BS: "sp", SPACE: "space", GO: "go", SAVE: "go" };
+var holdMode = false;
 var query = "";
-function renderKb() {
+function renderKb(layout) {
   var h = "";
-  KB_LAYOUT.forEach(function (row) {
+  (layout || KB_LAYOUT).forEach(function (row) {
     h += '<div class="r ' + row.cls + '">';
     row.keys.forEach(function (k) {
       h += '<button data-k="' + k + '" class="' + (KB_CLASS[k] || "") + '">' + (KB_LABEL[k] || k) + "</button>";
@@ -587,6 +651,7 @@ function renderKb() {
   setHTML("kb", h);
 }
 function kbKey(k) {
+  if (holdMode) { holdKey(k); return; }
   if (k === "BS") query = query.slice(0, -1);
   else if (k === "CLR") query = "";
   else if (k === "SPACE") query += " ";
@@ -630,7 +695,7 @@ function overlayMode(title, search) {
   showKb(search);
 }
 function openSearch() {
-  playlistsMode = false;
+  playlistsMode = false; holdMode = false;
   overlayMode("Search", true); renderKb(); query = ""; setHTML("qtext", "");
   if (DEMO) { showResults(demoSearch(), "Results"); }
 }
@@ -669,7 +734,7 @@ function pickDevice(i) {
     .then(function () { closeSearch(); setTimeout(pollSpotify, 1200); })
     .catch(function (e) { setHTML("smsg", esc(e.message)); });
 }
-function closeSearch() { $("overlay").className = ""; }
+function closeSearch() { $("overlay").className = ""; holdMode = false; }
 function doSearch() {
   var q = query.trim(); if (!q) return;
   showKb(false);
@@ -800,6 +865,7 @@ function demoWeather() {
       weather_code: [3, 71, 73, 2, 0, 61], temperature_2m_max: [1, 0, -2, -1, 2, 4], temperature_2m_min: [-3, -4, -6, -7, -3, 0],
       precipitation_probability_max: [20, 70, 80, 10, 5, 60], sunset: ["2026-11-24T15:58"] } };
 }
+if (DEMO) { store("hold_shares", "19.14516815"); store("hold_cost", "3200.02"); }
 function demoStock() {
   var vals = [], v = 181.2;
   for (var i = 0; i < 52; i++) { v += Math.sin(i / 5) * 0.9 + (i % 7 - 3) * 0.12 + 0.05; vals.push({ datetime: "2026-11-24 " + pad(9 + Math.floor((30 + i * 5) / 60)) + ":" + pad((30 + i * 5) % 60) + ":00", close: v.toFixed(2) }); }
@@ -829,7 +895,6 @@ document.addEventListener("fullscreenchange", fitUnit); document.addEventListene
 var KIOSK = /[?&]kiosk=1/.test(location.search) || isKindle();
 if (KIOSK) {
   document.documentElement.className += " kiosk";
-  try { history.replaceState(null, "", location.pathname); } catch (e) {} // keep the address clean (Spotify login)
   store("kiosk", "1");
 }
 function exitKiosk() {
@@ -855,9 +920,10 @@ if (KIOSK) {
 (function () { var kb = $("kb"); kb.addEventListener("touchstart", kbPress, false); kb.addEventListener("mousedown", kbPress, false); })();
 tickClock(); setInterval(tickClock, 20000);
 loadWeather(); setInterval(loadWeather, (C.WEATHER_EVERY_MIN || 30) * 60000);
-loadStock(); setInterval(loadStock, (C.STOCK_EVERY_MIN || 10) * 60000);
+renderHolding(); loadStock(); setInterval(loadStock, (C.STOCK_EVERY_MIN || 10) * 60000);
 if (DEMO && /[?&]search=1/.test(location.search)) setTimeout(openSearch, 50);
 if (DEMO && /[?&]devices=1/.test(location.search)) setTimeout(openDevices, 50);
+if (DEMO && /[?&]hold=1/.test(location.search)) setTimeout(openHoldings, 50);
 if (DEMO && /[?&]songs=1/.test(location.search)) setTimeout(function () { openPlaylists(); openPlaylist(0); }, 60);
 if (DEMO && /[?&]typed=1/.test(location.search)) setTimeout(function () { "midnight".split("").forEach(kbKey); }, 80);
 if (DEMO && /[?&]press=1/.test(location.search)) setTimeout(function () { var b = document.querySelector('#kb button[data-k="g"]'); pressFeedback(b, "g"); clearTimeout(popTimer); }, 150);
