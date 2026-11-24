@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Kindle Dashboard</title>
-<script src="config.js"></script>
+<script>document.write('<script src="config.js?v=' + Date.now() + '"><\/script>');</script>
 <script>
   function fitUnit() { var u = Math.min(window.innerWidth, window.innerHeight * 0.725) / 100;
     document.documentElement.style.fontSize = u + "px"; }
@@ -86,6 +86,8 @@
   #exitbtn { display: none; margin-left: 2rem; font-family: Helvetica, Arial, sans-serif; font-size: 2.4rem; font-weight: bold;
              background: #fff; border: .35rem solid #000; border-radius: 1.2rem; padding: .6rem 2rem; vertical-align: middle; }
   .kiosk #exitbtn { display: inline-block; }
+  #reloadbtn { margin-left: 1.6rem; font-family: Helvetica, Arial, sans-serif; font-size: 2.6rem; font-weight: bold;
+               background: #fff; border: .35rem solid #000; border-radius: 1.2rem; padding: .4rem 1.6rem; vertical-align: middle; }
   #holding { font-size: 2.5rem; margin: -.4rem 0 .6rem; padding: .6rem 1.4rem; white-space: nowrap; overflow: hidden; border: .25rem solid #000; border-radius: 1.2rem; }
   #holding b { font-size: 2.9rem; }
   #holding.empty { border-style: dashed; color: #555; text-align: center; }
@@ -143,7 +145,7 @@
 <body>
 
 <section id="weather">
-  <div class="topbar"><span id="clock" onclick="toggleFull()">--:--</span><span class="label" id="wlabel">Weather</span><span><span id="date" class="sans"></span><button id="exitbtn" onclick="exitKiosk()">Exit</button></span></div>
+  <div class="topbar"><span id="clock" onclick="toggleFull()">--:--</span><span class="label" id="wlabel">Weather</span><span><span id="date" class="sans"></span><button id="reloadbtn" onclick="reloadFresh()"><svg viewBox="0 0 24 24" style="width:2.6rem;height:2.6rem;vertical-align:middle"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2.2a5.8 5.8 0 1 1-1.7-4.1L13 11h7V4z" fill="#000"/></svg></button><button id="exitbtn" onclick="exitKiosk()">Exit</button></span></div>
   <div class="now">
     <span id="wicon"></span>
     <span id="temp">--°</span>
@@ -904,6 +906,26 @@ function exitKiosk() {
   try { fetch(u, { mode: "no-cors" }).catch(function () {}); } catch (e) {}
   setTimeout(function () { setHTML("exitbtn", "Exit"); }, 8000); // if nothing happened, the power button still works
 }
+
+/* ---------------- refresh: button + automatic update check ---------------- */
+function reloadFresh() {
+  setHTML("reloadbtn", "…");
+  location.replace(location.pathname + "?v=" + Date.now()); // the number makes the browser fetch the newest version
+}
+function textHash(t) { var h = 0; for (var i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0; return h; }
+var pageHash = null;
+function checkForUpdate() {
+  if (DEMO) return;
+  Promise.all([
+    fetch(location.pathname + "?check=" + Date.now(), { cache: "no-store" }).then(function (r) { return r.text(); }),
+    fetch("config.js?check=" + Date.now(), { cache: "no-store" }).then(function (r) { return r.text(); })
+  ]).then(function (t) {
+    var h = textHash(t[0] + t[1]);
+    if (pageHash === null) pageHash = h;          // first check: remember the current version
+    else if (h !== pageHash && !$("overlay").className) reloadFresh(); // new upload: reload (not while a menu is open)
+  }).catch(function () {});
+}
+setTimeout(checkForUpdate, 20000); setInterval(checkForUpdate, 5 * 60000);
 
 /* ---------------- start ---------------- */
 // tell the Dashboard launcher (if it is waiting) that this page really loaded
