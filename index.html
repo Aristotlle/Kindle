@@ -358,8 +358,16 @@ function renderSpotify(state) {
     setHTML("spbody", '<div class="err" style="margin-top:2vw">Add your Spotify Client ID in config.js</div>'); return;
   }
   if (!DEMO && !load("sp_refresh")) {
-    setHTML("spbody", '<div class="sans" style="font-size:3vw;margin-top:2vw">Log in once to use the remote.</div>' +
-      '<button class="big" onclick="spLogin()">Log in to Spotify</button><div id="msg"></div>'); return;
+    var code = pairCode();
+    setHTML("spbody",
+      '<div class="sans" style="font-size:2.8rem;margin-top:1.4rem;line-height:1.4">' +
+      '<b>Pair with your computer:</b> open this page on the PC, log in to Spotify there, click <b>Send login to Kindle</b> and type this code:</div>' +
+      '<div style="font-size:9rem;font-weight:bold;letter-spacing:1rem;text-align:center;margin:2rem 0 1rem">' + code + '</div>' +
+      '<div class="sans muted" style="font-size:2.3rem;text-align:center">Waiting for the computer…</div>' +
+      '<button class="big" style="height:9rem;font-size:3rem" onclick="spLogin()">Log in to Spotify on this device</button><div id="msg"></div>');
+    if (!isKindle()) setHTML("msg", "On the computer: log in with the button above, then use “Send login to Kindle”.");
+    startPairPolling(code);
+    return;
   }
   var item = state && state.item, playing = state && state.is_playing;
   var dev = state && state.device;
@@ -376,7 +384,8 @@ function renderSpotify(state) {
       '<button onclick="act(\'voldown\')">Vol −</button>' +
       '<button class="tv" onclick="act(\'tv\')">Play on TV</button>' +
       '<button onclick="act(\'volup\')">Vol +</button>' +
-    "</div><div id=\"msg\"></div>";
+    "</div><div id=\"msg\"></div>" +
+    (isKindle() ? "" : '<button class="big" style="height:9rem;font-size:3rem" onclick="sendToKindle()">Send login to Kindle</button>');
   var keep = $("msg") ? $("msg").innerHTML : "";
   setHTML("spbody", html);
   if (keep) $("msg").innerHTML = keep;
@@ -421,6 +430,62 @@ function act(what) {
      else setMsg(e.message);
    })
    .then(function () { busy = false; setTimeout(pollSpotify, 900); });
+}
+
+
+/* ---------------- pairing: log in on a computer, hand the login to the Kindle ----------------
+   The computer posts the Spotify refresh token to a random one-off ntfy.sh topic named after the
+   code shown on the Kindle; the Kindle picks it up, and the computer then forgets its own copy. */
+function isKindle() { return /kindle|silk|armv7l/i.test(navigator.userAgent) || /[?&]kindle=1/.test(location.search); }
+var PAIR_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+function pairCode() {
+  var c = load("sp_paircode");
+  if (!c) { var a = new Uint8Array(8); crypto.getRandomValues(a); c = "";
+    for (var i = 0; i < 8; i++) c += PAIR_ALPHABET[a[i] % PAIR_ALPHABET.length];
+    store("sp_paircode", c); }
+  return c.slice(0, 4) + "-" + c.slice(4);
+}
+function pairTopic(code) { return "kdash-" + code.replace(/[^A-Za-z0-9]/g, "").toUpperCase(); }
+var pairTimer = null;
+function startPairPolling(code) {
+  if (pairTimer) return;
+  pairTimer = setInterval(function () {
+    fetch("https://ntfy.sh/" + pairTopic(code) + "/json?poll=1&since=12h")
+      .then(function (r) { return r.text(); })
+      .then(function (txt) {
+        var lines = txt.split("\n");
+        for (var i = lines.length - 1; i >= 0; i--) {
+          if (!lines[i]) continue;
+          var ev = JSON.parse(lines[i]);
+          if (ev.event !== "message") continue;
+          var data = JSON.parse(ev.message);
+          if (data && data.r) {
+            store("sp_refresh", data.r); store("sp_access", null); store("sp_expires", "0"); store("sp_paircode", null);
+            clearInterval(pairTimer); pairTimer = null; pollSpotify.key = null;
+            pollSpotify(); return;
+          }
+        }
+      }).catch(function () {});
+  }, 5000);
+}
+function sendToKindle() {
+  var code = window.prompt("Type the 8-character code shown on the Kindle:");
+  if (!code) return;
+  code = code.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+  if (code.length !== 8) { alert("The code should have 8 letters/numbers."); return; }
+  // refresh first so the Kindle receives a fresh, valid refresh token
+  tokenRequest({ grant_type: "refresh_token", refresh_token: load("sp_refresh") || "" })
+    .then(function () {
+      return fetch("https://ntfy.sh/" + pairTopic(code), { method: "POST", body: JSON.stringify({ r: load("sp_refresh") }) });
+    })
+    .then(function (r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      // forget the login here, so this computer never refreshes it and breaks the Kindle's copy
+      store("sp_refresh", null); store("sp_access", null); store("sp_expires", null);
+      alert("Sent! The Kindle should show your music within about 10 seconds. This computer is now logged out.");
+      location.reload();
+    })
+    .catch(function (e) { alert("Could not send: " + e.message); });
 }
 
 /* ---------------- demo data (for previewing the layout: add ?demo=1 to the URL) ---------------- */
