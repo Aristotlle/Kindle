@@ -9,7 +9,7 @@
   function fitUnit() { var u = Math.min(window.innerWidth, window.innerHeight * 0.725) / 100;
     document.documentElement.style.fontSize = u + "px"; }
   fitUnit(); window.addEventListener("resize", fitUnit);
-  if (!/kindle|silk|armv7l/i.test(navigator.userAgent)) document.documentElement.className = 'pc';
+  if (/Windows|Macintosh|Mac OS X|iPhone|iPad|Android|CrOS/i.test(navigator.userAgent) && !/kindle|silk/i.test(navigator.userAgent)) document.documentElement.className = 'pc';
 </script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -504,7 +504,11 @@ function act(what) {
 /* ---------------- pairing: log in on a computer, hand the login to the Kindle ----------------
    The computer posts the Spotify refresh token to a random one-off ntfy.sh topic named after the
    code shown on the Kindle; the Kindle picks it up, and the computer then forgets its own copy. */
-function isKindle() { return /kindle|silk|armv7l/i.test(navigator.userAgent) || /[?&]kindle=1/.test(location.search); }
+function isKindle() {
+  var ua = navigator.userAgent;
+  if (/[?&]kindle=1/.test(location.search) || /kindle|silk/i.test(ua)) return true;
+  return !/Windows|Macintosh|Mac OS X|iPhone|iPad|Android|CrOS/i.test(ua); // anything that isn't a PC/phone = the Kindle
+}
 var PAIR_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 function pairCode() {
   var c = load("sp_paircode");
@@ -822,7 +826,7 @@ document.addEventListener("click", function first() { if (!isFull()) goFull(); d
 document.addEventListener("fullscreenchange", fitUnit); document.addEventListener("webkitfullscreenchange", fitUnit);
 
 /* ---------------- Exit button (only when started by the Dashboard launcher) ---------------- */
-var KIOSK = /[?&]kiosk=1/.test(location.search);
+var KIOSK = /[?&]kiosk=1/.test(location.search) || isKindle();
 if (KIOSK) {
   document.documentElement.className += " kiosk";
   try { history.replaceState(null, "", location.pathname); } catch (e) {} // keep the address clean (Spotify login)
