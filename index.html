@@ -245,7 +245,9 @@ function loadWeather() {
     "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunset" +
     "&timezone=" + encodeURIComponent(C.TIMEZONE) + "&forecast_days=6&wind_speed_unit=ms";
   var p = DEMO ? Promise.resolve(demoWeather()) : fetch(url).then(function (r) { return r.json(); });
-  p.then(renderWeather).catch(function () { setHTML("nowinfo", '<span class="err">Weather unavailable</span>'); });
+  p.then(renderWeather).catch(function () {
+    weatherAt = Date.now() - ((C.WEATHER_EVERY_MIN || 60) - 1) * 60000; // try again in a minute
+    setHTML("nowinfo", '<span class="err">Weather unavailable</span>'); });
 }
 function renderWeather(w) {
   weatherAt = Date.now();
@@ -288,7 +290,9 @@ function loadStock() {
   var p = DEMO ? Promise.resolve(demoStock()) :
     Promise.all([td("quote?symbol=" + C.STOCK), td(series)]);
   p.then(function (res) { renderStock(res[0], res[1]); })
-   .catch(function (e) { setHTML("stockinfo", "Stock unavailable: " + esc(e.message || e)); });
+   .catch(function (e) {
+     stockAt = Date.now() - ((marketOpen ? (C.STOCK_EVERY_MIN || 10) : 60) - 1) * 60000; // try again in a minute
+     setHTML("stockinfo", "Stock unavailable: " + esc(e.message || e)); });
 }
 var stockAt = 0, marketOpen = true, weatherAt = 0;
 function renderStock(q, ts) {
@@ -923,6 +927,11 @@ function exitKiosk() {
 /* ---------------- one scheduler for everything (uses the wall clock, so it also works after deep sleep) ----------------
    Battery saver: when started by the Dashboard launcher, the page asks the launcher to put the Kindle into deep sleep
    after a while without touches. The launcher wakes it on a timer to refresh, or when the power button is pressed. */
+var aliveAt = 0;
+function ping(port, what) {
+  var u = "http://127.0.0.1:" + port + "/" + what + "?" + Date.now();
+  try { new Image().src = u; } catch (e) {}
+}
 var lastTick = Date.now(), lastTouch = Date.now(), wokeAt = Date.now(), sleepAskedAt = 0, sleepBroken = 0;
 var MIN = 60000;
 function nightNow() { var h = localNow().getHours(); return h >= (C.NIGHT_FROM == null ? 23 : C.NIGHT_FROM) || h < (C.NIGHT_TO == null ? 7 : C.NIGHT_TO); }
@@ -933,12 +942,14 @@ function tick() {
   if (now - lastTick > 30000) {             // the clock jumped: we were asleep
     wokeAt = now; setAsleep(false);
     if (sleepAskedAt && now - sleepAskedAt < 40000) sleepBroken = 0;
-    spNextPoll = 0;                          // refresh Spotify right away
+    spNextPoll = now + 8000;                 // refresh Spotify once Wi-Fi is back
   } else if (sleepAskedAt && now - sleepAskedAt > 25000 && now - sleepAskedAt < 40000 && $("sleepnote").innerHTML) {
     setAsleep(false); sleepBroken = now;     // sleep request had no effect (not started by the launcher)
   }
   lastTick = now;
   tickClock();
+  if (KIOSK && now - aliveAt > 60000) { aliveAt = now; ping(8769, "alive"); } // "I'm fine" to the launcher's watchdog
+  if (now - wokeAt < 8000) { maybeSleep(now); return; }                     // give Wi-Fi a few seconds after waking
   if (now - weatherAt > (C.WEATHER_EVERY_MIN || 60) * MIN) { weatherAt = now; loadWeather(); }
   if (now - stockAt > (marketOpen ? (C.STOCK_EVERY_MIN || 10) : 60) * MIN) { stockAt = now; loadStock(); }
   if (now >= spNextPoll) { spNextPoll = now + 120000; pollSpotify(); }
@@ -970,10 +981,16 @@ function maybeSleep(now) {
 }
 
 /* ---------------- refresh: button + automatic update check ---------------- */
-function reloadFresh() {
+function reloadFresh(auto) {
+  if (auto && Date.now() - wokeAt < 90000) return;        // Wi-Fi may still be reconnecting after sleep
+  var url = location.pathname + "?v=" + Date.now();       // the number makes the browser fetch the newest version
   setHTML("reloadbtn", "…");
-  location.replace(location.pathname + "?v=" + Date.now()); // the number makes the browser fetch the newest version
+  fetch(url, { cache: "no-store" }).then(function (r) {
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    location.replace(url);                                // only navigate once we know the page loads
+  }).catch(function () { setHTML("reloadbtn", RELOAD_ICON); });
 }
+var RELOAD_ICON = '<svg viewBox="0 0 24 24" style="width:2.6rem;height:2.6rem;vertical-align:middle"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2.2a5.8 5.8 0 1 1-1.7-4.1L13 11h7V4z" fill="#000"/></svg>';
 function textHash(t) { var h = 0; for (var i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0; return h; }
 var pageHash = null;
 function checkForUpdate() {
@@ -984,7 +1001,7 @@ function checkForUpdate() {
   ]).then(function (t) {
     var h = textHash(t[0] + t[1]);
     if (pageHash === null) pageHash = h;          // first check: remember the current version
-    else if (h !== pageHash && !$("overlay").className) reloadFresh(); // new upload: reload (not while a menu is open)
+    else if (h !== pageHash && !$("overlay").className) reloadFresh(true); // new upload: reload (not while a menu is open)
   }).catch(function () {});
 }
 var updateAt = 0;
